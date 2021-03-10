@@ -41,10 +41,10 @@ torch.manual_seed(args.seed)
 model = ATCEncoder(args)
 
 if not args.cache:
-    train_dataset = FrameDataset(args.path, types=args.types, size=[args.size, args.size],
+    train_dataset = FrameDataset(args.data_path, types=args.types, size=[args.size, args.size],
                                  random_shift=args.random_shift, mode='train')
     torch.save(train_dataset, './train')
-    val_dataset = FrameDataset(args, types=args.types, size=[args.size, args.size],
+    val_dataset = FrameDataset(args.data_path, types=args.types, size=[args.size, args.size],
                                random_shift=args.random_shift, mode='val')
     torch.save(val_dataset, './val')
 
