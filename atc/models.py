@@ -198,7 +198,7 @@ class ATCEncoder(pl.LightningModule):
         parser.add_argument('--anchor_size', type=int, default=256)
         parser.add_argument('--channels', nargs='+', type=int, default=[32, 32, 32, 32])
         parser.add_argument('--filter', nargs='+', type=int, default=[3, 3, 3, 3])
-        parser.add_argument('--stride', nargs='+', type=int, default=[2, 2, 2, 1])
+        parser.add_argument('--strides', nargs='+', type=int, default=[2, 2, 2, 1])
         parser.add_argument('--target_update_interval', type=int, default=1)
         parser.add_argument('--target_update_tau', type=float, default=0.01)
         return parser
