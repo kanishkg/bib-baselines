@@ -37,10 +37,10 @@ class FrameDataset(torch.utils.data.Dataset):
         # split for train and val
         if mode == 'train':
             self.path_list = self.path_list[:int(0.8 * len(self.path_list))]
-            self.json_list = self.path_list[:int(0.8 * len(self.json_list))]
+            self.json_list = self.json_list[:int(0.8 * len(self.json_list))]
         elif mode == 'val':
             self.path_list = self.path_list[int(0.8 * len(self.path_list)):]
-            self.json_list = self.path_list[int(0.8 * len(self.json_list)):]
+            self.json_list = self.json_list[int(0.8 * len(self.json_list)):]
 
         self.data_tuples = []
 
@@ -48,7 +48,7 @@ class FrameDataset(torch.utils.data.Dataset):
         for j, v in zip(self.json_list, self.path_list):
             print(j)
             try:
-                with open(v, 'r') as f:
+                with open(j, 'r') as f:
                     state = json.load(f)
             except UnicodeDecodeError as e:
                 print(f'file skipped {j} with {e}')
