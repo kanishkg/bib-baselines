@@ -48,7 +48,7 @@ class FrameDataset(torch.utils.data.Dataset):
         for j, v in zip(self.json_list, self.path_list):
             print(j)
             try:
-                with open(j, 'r') as f:
+                with open(v, 'r') as f:
                     state = json.load(f)
             except UnicodeDecodeError as e:
                 print(f'file skipped {j} with {e}')
