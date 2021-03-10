@@ -24,7 +24,6 @@ parser.add_argument('--random_shift', type=int, default=0)
 parser.add_argument('--size', type=int, default=100)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--batch_size', type=int, default=32)
-parser = FrameDataset.add_dataset_specific_args(parser)
 
 # add model specific args
 parser = ATCEncoder.add_model_specific_args(parser)
@@ -53,8 +52,8 @@ elif args.cache:
     train_dataset = torch.load('./train')
     val_dataset = torch.load('./val')
 
-train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
-val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
+train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
+val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
 
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)

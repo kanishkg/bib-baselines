@@ -193,6 +193,7 @@ class ATCEncoder(pl.LightningModule):
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser.add_argument('--lr', type=float, default=1e-4)
         parser.add_argument('--latent_size', type=int, default=128)
         parser.add_argument('--anchor_size', type=int, default=256)
         parser.add_argument('--channels', nargs='+', type=int, default=[32, 32, 32, 32])
