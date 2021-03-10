@@ -200,6 +200,7 @@ class ATCEncoder(pl.LightningModule):
         return parser
 
     def __init__(self, hparams):
+        super().__init__()
         self.hparams = hparams
         self.target_update_interval = hparams.target_update_interval
         self.target_update_tau = hparams.target_update_tau
