@@ -202,6 +202,7 @@ class ATCEncoder(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
+        self.lr = hparams.lr
         self.target_update_interval = hparams.target_update_interval
         self.target_update_tau = hparams.target_update_tau
         self.encoder = EncoderModel(image_shape=[3, hparams.size, hparams.size], latent_size=hparams.latent_size,
