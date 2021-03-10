@@ -193,19 +193,23 @@ class ATCEncoder(pl.LightningModule):
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument('--latent_size', type=int, default=2)
-        parser.add_argument('--anchor_size', type=int, default=2)
-        parser.add_argument('--channels', type=int, default=2)
-        parser.add_argument('--filter', type=int, default=2)
+        parser.add_argument('--latent_size', type=int, default=128)
+        parser.add_argument('--anchor_size', type=int, default=256)
+        parser.add_argument('--channels', nargs='+', type=int, default=[32, 32, 32, 32])
+        parser.add_argument('--filter', nargs='+', type=int, default=[3, 3, 3, 3])
+        parser.add_argument('--stride', nargs='+', type=int, default=[2, 2, 2, 1])
         parser.add_argument('--target_update_interval', type=int, default=1)
         parser.add_argument('--target_update_tau', type=float, default=0.01)
         return parser
 
     def __init__(self, hparams):
         self.hparams = hparams
-        self.encoder = EncoderModel()
+        self.target_update_interval = hparams.target_update_interval
+        self.target_update_tau = hparams.target_update_tau
+        self.encoder = EncoderModel(image_shape=[3, hparams.size, hparams.size], latent_size=hparams.latent_size,
+                                    channels=hparams.channels, kernel_sizes=hparams.filter, strides=hparams.strides)
         self.target_encoder = copy.deepcopy(self.encoder)
-        self.contrast_model = ContrastModel()
+        self.contrast_model = ContrastModel(hparams.latent_size, hparams.anchor_size)
         self.celoss = nn.CrossEntropyLoss()
 
     def training_step(self, batch, batch_idx):

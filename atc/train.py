@@ -16,6 +16,7 @@ parser.add_argument('--seed', type=int, default=4)
 
 # data specific args
 parser.add_argument('--data_path', type=str, default='./data.npy')
+parser.add_argument('--cache', type=int, default=0)
 parser.add_argument('--types', nargs='+', type=str, default=['co', 'pr'],
                     help='types of tasks used for training / testing')
 parser.add_argument('--shift', type=int, default=1)
@@ -39,10 +40,18 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 
 model = ATCEncoder(args)
-train_dataset = FrameDataset(args.path, types=args.types, size=[args.size, args.size],
-                             random_shift=args.random_shift, mode='train')
-val_dataset = FrameDataset(args, types=args.types, size=[args.size, args.size],
-                           random_shift=args.random_shift, mode='val')
+
+if not args.cache:
+    train_dataset = FrameDataset(args.path, types=args.types, size=[args.size, args.size],
+                                 random_shift=args.random_shift, mode='train')
+    torch.save(train_dataset, './train')
+    val_dataset = FrameDataset(args, types=args.types, size=[args.size, args.size],
+                               random_shift=args.random_shift, mode='val')
+    torch.save(val_dataset, './val')
+
+elif args.cache:
+    train_dataset = torch.load('./train')
+    val_dataset = torch.load('./val')
 
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
 val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, num_workers=args.num_workers)
