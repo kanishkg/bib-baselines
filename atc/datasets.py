@@ -47,8 +47,12 @@ class FrameDataset(torch.utils.data.Dataset):
         # process json files to extract frame indices for training atc
         for j, v in zip(self.json_list, self.path_list):
             print(j)
-            with open(j, 'r') as f:
-                state = json.load(f)
+            try:
+                with open(j, 'r') as f:
+                    state = json.load(f)
+            except UnicodeDecodeError as e:
+                print(f'file skipped {j} with {e}')
+                continue
             ep_lens = [len(x) for x in state]
             past_len = 0
             for e, l in enumerate(ep_lens):
