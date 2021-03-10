@@ -133,7 +133,6 @@ class EncoderModel(nn.Module):
             use_maxpool=False,
         )
         self._output_size = self.conv.conv_out_size(h, w)
-        self._output_shape = self.conv.conv_out_shape(h, w)
         self.head = MlpModel(
             input_size=self._output_size,
             hidden_sizes=hidden_sizes,
@@ -158,9 +157,6 @@ class EncoderModel(nn.Module):
     def output_size(self):
         return self._output_size
 
-    @property
-    def output_shape(self):
-        return self._output_shape
 
 
 class ContrastModel(nn.Module):
