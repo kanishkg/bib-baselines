@@ -9,7 +9,7 @@ import torchvision
 
 class FrameDataset(torch.utils.data.Dataset):
 
-    def __init__(self, path, types=None, size=None, shift=1, mode="train", random_shift=0, process_data=1):
+    def __init__(self, path, types=None, size=None, shift=1, mode="train", process_data=1):
 
         self.path = path
         self.types = types
@@ -18,11 +18,6 @@ class FrameDataset(torch.utils.data.Dataset):
         self.mode = mode
         self.json_list = []
         self.path_list = []
-        self.random_shift = random_shift
-
-        # transforms
-        if self.random_shift:
-            self.shift_transform = torchvision.transforms.RandomAffine(0, translate=(1 / 16, 1 / 16))
 
         # read video files
         for t in types:
@@ -82,8 +77,6 @@ class FrameDataset(torch.utils.data.Dataset):
                 assert frame is not None, f'frame is empty {f}, {video}, i'
                 frame = cv2.resize(frame, self.size)
             frame = torch.tensor(frame).permute(2, 0, 1)
-            if self.random_shift:
-                frame = self.shift_transform(frame)
             frames.append(frame)
 
         # return frames as a torch tensor f x c x w x h

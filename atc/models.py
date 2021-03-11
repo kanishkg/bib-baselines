@@ -5,7 +5,7 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 
-from atc.utils import conv2d_output_shape, infer_leading_dims, restore_leading_dims, update_state_dict
+from atc.utils import conv2d_output_shape, infer_leading_dims, restore_leading_dims, update_state_dict, random_shift
 
 
 class MlpModel(nn.Module):
@@ -215,6 +215,17 @@ class ATCEncoder(pl.LightningModule):
             update_state_dict(self.target_encoder, self.encoder.state_dict(),
                               self.target_update_tau)
         xa, xp = batch
+        if self.hparams.random_shift:
+            xa = random_shift(
+                imgs=xa,
+                pad=1,
+                prob=1.,
+            )
+            xp = random_shift(
+                imgs=xp,
+                pad=1,
+                prob=1.,
+            )
         with torch.no_grad():
             z_positive, _ = self.target_encoder(xp)
         z_anchor, conv_output = self.encoder(xa)
