@@ -31,6 +31,7 @@ parser = ATCEncoder.add_model_specific_args(parser)
 # add all the available trainer options to argparse
 parser = Trainer.add_argparse_args(parser)
 
+# parse args
 args = parser.parse_args()
 print(args)
 
@@ -38,8 +39,10 @@ random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 
+# init model
 model = ATCEncoder(args)
 
+# load train and val datasets and loaders
 print("loading train dataset")
 train_dataset = FrameDataset(args.data_path, types=args.types, size=(args.size, args.size),
                              mode='train', process_data=args.cache)

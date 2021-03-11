@@ -210,6 +210,10 @@ class ATCEncoder(pl.LightningModule):
         self.contrast_model = ContrastModel(hparams.latent_size, hparams.anchor_size)
         self.celoss = nn.CrossEntropyLoss()
 
+    def forward(self, input):
+        embedding, _ = self.encoder(input)
+        return embedding
+
     def training_step(self, batch, batch_idx):
         if batch_idx % self.target_update_interval == 0:
             update_state_dict(self.target_encoder, self.encoder.state_dict(),

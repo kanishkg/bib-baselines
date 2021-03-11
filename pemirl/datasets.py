@@ -5,15 +5,18 @@ import cv2
 import torch
 import torch.utils.data
 
+ACTION_LIST = [[0, 1], [1, 0], [1, 1],
+               [0, -1], [-1, 0], [-1, -1],
+               [0, 0], [-1, 1], [1, -1]]
 
-class FrameDataset(torch.utils.data.Dataset):
 
-    def __init__(self, path, types=None, size=None, shift=1, mode="train", process_data=1):
+class CacheDataset(torch.utils.data.Dataset):
+
+    def __init__(self, path, types=None, size=None, mode="train", process_data=0):
 
         self.path = path
         self.types = types
         self.size = size
-        self.shift = shift
         self.mode = mode
         self.json_list = []
         self.path_list = []
@@ -29,6 +32,7 @@ class FrameDataset(torch.utils.data.Dataset):
         self.path_list = sorted(self.path_list)
         self.json_list = sorted(self.json_list)
 
+        self.data_tuples = []
         # split for train and val
         if mode == 'train':
             self.path_list = self.path_list[:int(0.8 * len(self.path_list))]
@@ -36,32 +40,37 @@ class FrameDataset(torch.utils.data.Dataset):
         elif mode == 'val':
             self.path_list = self.path_list[int(0.8 * len(self.path_list)):]
             self.json_list = self.json_list[int(0.8 * len(self.json_list)):]
+        elif mode == 'test':
+            pass
 
-        self.data_tuples = []
-
-        # process json files to extract frame indices for training atc
         if process_data:
+
             print('processing files')
             for j, v in zip(self.json_list, self.path_list):
                 print(j)
-                try:
-                    with open(j, 'r') as f:
-                        state = json.load(f)
-                except UnicodeDecodeError as e:
-                    print(f'file skipped {j} with {e}')
-                    continue
+                with open(j, 'r') as f:
+                    state = json.load(f)
                 ep_lens = [len(x) for x in state]
                 past_len = 0
                 for e, l in enumerate(ep_lens):
+                    self.data_tuples.append([])
                     # skip first 30 frames and last 83 frames
-                    for f in range(30, l - 83 - self.shift):
-                        self.data_tuples.append((v, f + past_len, f + past_len + self.shift))
+                    for f in range(30, l - 83 - 1):
+                        # find action taken; this calculation is approximate
+                        f0x, f0y = state[e][f]['agent'][0]
+                        f1x, f1y = state[e][f + 1]['agent'][0]
+                        dx = int((f1x - f0x) / 2)
+                        dy = int((f1x - f0x) / 2)
+                        action = ACTION_LIST.index([dx, dy])
+                        self.data_tuples[-1].append((v, past_len + f, action))
                     past_len += l
+
             index_dict = {'data_tuples': self.data_tuples}
-            with open(os.path.join(self.path, f'index_dict_{mode}.json'), 'w') as fp:
+            with open(os.path.join(self.path, f'index_bib_{mode}.json'), 'w') as fp:
                 json.dump(index_dict, fp)
+
         else:
-            with open(os.path.join(self.path, f'index_dict_{mode}.json'), 'r') as fp:
+            with open(os.path.join(self.path, f'index_bib_{mode}.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_tuples = index_dict['data_tuples']
 
@@ -85,12 +94,12 @@ class FrameDataset(torch.utils.data.Dataset):
         return frames
 
     def __getitem__(self, idx):
-        video = self.data_tuples[idx][0]
-        frames_idx = [self.data_tuples[idx][1], self.data_tuples[idx][2]]
+        # works only with batch size of 1
+        video = self.data_tuples[idx][0][0]
+        frames_idx = [d[1] for d in self.data_tuples[idx]]
+        actions = torch.tensor([d[2] for d in self.data_tuples[idx]])
         frames = self._get_frames(video, frames_idx)
-        in_frame = frames[0, :, :, :]
-        tar_frame = frames[1, :, :, :]
-        return in_frame, tar_frame
+        return frames, actions
 
     def __len__(self):
         return len(self.data_tuples)
