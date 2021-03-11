@@ -9,7 +9,7 @@ import torchvision
 
 class FrameDataset(torch.utils.data.Dataset):
 
-    def __init__(self, path, types=None, size=None, shift=1, mode="train", random_shift=0):
+    def __init__(self, path, types=None, size=None, shift=1, mode="train", random_shift=0, process_data=1):
 
         self.path = path
         self.types = types
@@ -46,22 +46,30 @@ class FrameDataset(torch.utils.data.Dataset):
         self.data_tuples = []
 
         # process json files to extract frame indices for training atc
-        print('processing files')
-        for j, v in zip(self.json_list, self.path_list):
-            print(j)
-            try:
-                with open(j, 'r') as f:
-                    state = json.load(f)
-            except UnicodeDecodeError as e:
-                print(f'file skipped {j} with {e}')
-                continue
-            ep_lens = [len(x) for x in state]
-            past_len = 0
-            for e, l in enumerate(ep_lens):
-                # skip first 30 frames and last 83 frames
-                for f in range(30, l - 83 - self.shift):
-                    self.data_tuples.append((v, f + past_len, f + past_len + self.shift))
-                past_len += l
+        if process_data:
+            print('processing files')
+            for j, v in zip(self.json_list, self.path_list):
+                print(j)
+                try:
+                    with open(j, 'r') as f:
+                        state = json.load(f)
+                except UnicodeDecodeError as e:
+                    print(f'file skipped {j} with {e}')
+                    continue
+                ep_lens = [len(x) for x in state]
+                past_len = 0
+                for e, l in enumerate(ep_lens):
+                    # skip first 30 frames and last 83 frames
+                    for f in range(30, l - 83 - self.shift):
+                        self.data_tuples.append((v, f + past_len, f + past_len + self.shift))
+                    past_len += l
+            index_dict = {'data_tuples': self.data_tuples}
+            with open(os.path.join(self.path, f'index_dict.json'), 'w') as fp:
+                json.dump(index_dict, fp)
+        else:
+            with open(os.path.join(self.path, f'index_dict.json'), 'r') as fp:
+                index_dict = json.load(fp)
+            self.data_tuples = index_dict['data_tuples']
 
     def _get_frames(self, video, frames_idx):
         cap = cv2.VideoCapture(video)
