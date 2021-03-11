@@ -220,7 +220,7 @@ class ATCEncoder(pl.LightningModule):
         z_anchor, conv_output = self.encoder(xa)
         logits = self.contrast_model(anchor=z_anchor, positive=z_positive)
         labels = torch.arange(z_anchor.shape[0],
-                              dtype=torch.long)
+                              dtype=torch.long, device=self.device)
 
         loss = self.celoss(logits, labels)
         correct = torch.argmax(logits.detach(), dim=1) == labels
@@ -237,7 +237,7 @@ class ATCEncoder(pl.LightningModule):
         z_anchor, conv_output = self.encoder(xa)
         logits = self.contrast_model(anchor=z_anchor, positive=z_positive)
         labels = torch.arange(z_anchor.shape[0],
-                              dtype=torch.long)
+                              dtype=torch.long, device=self.device)
 
         loss = self.celoss(logits, labels)
         correct = torch.argmax(logits.detach(), dim=1) == labels
