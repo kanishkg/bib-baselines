@@ -158,7 +158,6 @@ class EncoderModel(nn.Module):
         return self._output_size
 
 
-
 class ContrastModel(nn.Module):
 
     def __init__(self, latent_size, anchor_hidden_sizes):
@@ -231,6 +230,21 @@ class ATCEncoder(pl.LightningModule):
         self.log('accuracy', accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         return loss
+
+    def validation_step(self, batch, batch_idx):
+        xa, xp = batch
+        z_positive, _ = self.target_encoder(xp)
+        z_anchor, conv_output = self.encoder(xa)
+        logits = self.contrast(anchor=z_anchor, positive=z_positive)
+        labels = torch.arange(z_anchor.shape[0],
+                              dtype=torch.long, device=self.device)
+
+        loss = self.c_e_loss(logits, labels)
+        correct = torch.argmax(logits.detach(), dim=1) == labels
+        accuracy = torch.mean(correct.float())
+
+        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_accuracy', accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
