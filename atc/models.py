@@ -243,8 +243,8 @@ class ATCEncoder(pl.LightningModule):
         correct = torch.argmax(logits.detach(), dim=1) == labels
         accuracy = torch.mean(correct.float())
 
-        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_accuracy', accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_loss', loss, prog_bar=True, logger=True)
+        self.log('val_accuracy', accuracy, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
