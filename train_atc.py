@@ -40,17 +40,11 @@ torch.manual_seed(args.seed)
 
 model = ATCEncoder(args)
 
-if not args.cache:
-    train_dataset = FrameDataset(args.data_path, types=args.types, size=[args.size, args.size],
-                                 random_shift=args.random_shift, mode='train')
-    torch.save(train_dataset, './train')
-    val_dataset = FrameDataset(args.data_path, types=args.types, size=[args.size, args.size],
-                               random_shift=args.random_shift, mode='val')
-    torch.save(val_dataset, './val')
+train_dataset = FrameDataset(args.data_path, types=args.types, size=[args.size, args.size],
+                             random_shift=args.random_shift, mode='train')
+val_dataset = FrameDataset(args.data_path, types=args.types, size=[args.size, args.size],
+                           random_shift=args.random_shift, mode='val')
 
-elif args.cache:
-    train_dataset = torch.load('./train')
-    val_dataset = torch.load('./val')
 
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
 val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
