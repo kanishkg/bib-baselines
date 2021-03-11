@@ -239,7 +239,7 @@ class ATCEncoder(pl.LightningModule):
         labels = torch.arange(z_anchor.shape[0],
                               dtype=torch.long)
 
-        loss = self.c_e_loss(logits, labels)
+        loss = self.celoss(logits, labels)
         correct = torch.argmax(logits.detach(), dim=1) == labels
         accuracy = torch.mean(correct.float())
 
