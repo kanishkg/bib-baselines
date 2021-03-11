@@ -40,8 +40,10 @@ torch.manual_seed(args.seed)
 
 model = ATCEncoder(args)
 
+print("loading train dataset")
 train_dataset = FrameDataset(args.data_path, types=args.types, size=[args.size, args.size],
                              random_shift=args.random_shift, mode='train')
+print("loading val dataset")
 val_dataset = FrameDataset(args.data_path, types=args.types, size=[args.size, args.size],
                            random_shift=args.random_shift, mode='val')
 

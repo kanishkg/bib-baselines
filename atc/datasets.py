@@ -26,6 +26,7 @@ class FrameDataset(torch.utils.data.Dataset):
 
         # read video files
         for t in types:
+            print(f'reading files of type {t} in {mode}')
             self.path_list += [os.path.join(self.path, x) for x in os.listdir(self.path) if
                                x.endswith(f'{t}e.mp4')]
             self.json_list += [os.path.join(self.path, x) for x in os.listdir(self.path) if
@@ -45,6 +46,7 @@ class FrameDataset(torch.utils.data.Dataset):
         self.data_tuples = []
 
         # process json files to extract frame indices for training atc
+        print('processing files')
         for j, v in zip(self.json_list, self.path_list):
             print(j)
             try:
@@ -61,7 +63,7 @@ class FrameDataset(torch.utils.data.Dataset):
                     self.data_tuples.append((v, f + past_len, f + past_len + self.shift))
                 past_len += l
 
-    def get_frames(self, video, frames_idx):
+    def _get_frames(self, video, frames_idx):
         cap = cv2.VideoCapture(video)
         frames = []
         # read frames at ids and resize
@@ -83,7 +85,9 @@ class FrameDataset(torch.utils.data.Dataset):
         return frames
 
     def __getitem__(self, idx):
-        frames = self._get_video(self.data_tuples[idx])
+        video = self.data_tuples[idx][0]
+        frames_idx = [self.data_tuples[idx][1], self.data_tuples[idx][2]]
+        frames = self._get_frames(video, frames_idx)
         in_frame = frames[0, :, :, :]
         tar_frame = frames[1, :, :, :]
         return in_frame, tar_frame
