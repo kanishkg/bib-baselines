@@ -81,7 +81,7 @@ class FrameDataset(torch.utils.data.Dataset):
             if self.size is not None:
                 assert frame is not None, f'frame is empty {f}, {video}, i'
                 frame = cv2.resize(frame, self.size)
-            frame = torch.tensor(frame).permute(3, 1, 2)
+            frame = torch.tensor(frame).permute(2, 0, 1)
             if self.random_shift:
                 frame = self.shift_transform(frame)
             frames.append(frame)
