@@ -64,10 +64,10 @@ class FrameDataset(torch.utils.data.Dataset):
                         self.data_tuples.append((v, f + past_len, f + past_len + self.shift))
                     past_len += l
             index_dict = {'data_tuples': self.data_tuples}
-            with open(os.path.join(self.path, f'index_dict.json'), 'w') as fp:
+            with open(os.path.join(self.path, f'index_dict_{mode}.json'), 'w') as fp:
                 json.dump(index_dict, fp)
         else:
-            with open(os.path.join(self.path, f'index_dict.json'), 'r') as fp:
+            with open(os.path.join(self.path, f'index_dict_{mode}.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_tuples = index_dict['data_tuples']
 
