@@ -23,7 +23,7 @@ def numpify(func):
     def numpified_aug(imgs, *args, **kwargs):
         _numpify = isinstance(imgs, torch.Tensor)
         if _numpify:
-            imgs = imgs.numpy()
+            imgs = imgs.cpu().numpy()
         ret = func(imgs, *args, **kwargs)
         if _numpify:
             if isinstance(ret, tuple):
