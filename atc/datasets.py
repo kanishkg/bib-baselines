@@ -86,8 +86,6 @@ class FrameDataset(torch.utils.data.Dataset):
         frames = self._get_video(self.data_tuples[idx])
         in_frame = frames[0, :, :, :]
         tar_frame = frames[1, :, :, :]
-        if self.random_shift:
-            tar_frame = self.transform(tar_frame)
         return in_frame, tar_frame
 
     def __len__(self):
