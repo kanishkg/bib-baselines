@@ -28,9 +28,9 @@ def numpify(func):
         if _numpify:
             if isinstance(ret, tuple):
                 # Assume first is the augmented images.
-                ret = (torch.from_numpy(ret[0]), *ret[1:])
+                ret = (torch.from_numpy(ret[0]).cuda(), *ret[1:])
             else:
-                ret = torch.from_numpy(ret)
+                ret = torch.from_numpy(ret).cuda()
         return ret
 
     return numpified_aug
