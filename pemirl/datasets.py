@@ -1,13 +1,26 @@
 import json
 import os
+import math
 
 import cv2
+import h5py
+import numpy as np
 import torch
 import torch.utils.data
 
 ACTION_LIST = [[0, 1], [1, 0], [1, 1],
                [0, -1], [-1, 0], [-1, -1],
                [0, 0], [-1, 1], [1, -1]]
+
+#
+# def collate_function(batch):
+#     dem_states = torch.stack([item[0] for item in batch])
+#     dem_actions = torch.stack([item[1] for item in batch])
+#     test_states = torch.stack([item[2] for item in batch])
+#     test_actions = torch.stack([item[3] for item in batch])
+#     dem_l = torch.tensor([item[4] for item in batch])
+#     test_l = [item[5] for item in batch]
+#     return [dem_states, dem_actions, test_states, test_actions, dem_l, test_l]
 
 
 class CacheDataset(torch.utils.data.Dataset):
@@ -103,3 +116,45 @@ class CacheDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.data_tuples)
+
+
+class BIBDataset(torch.utils.data.Dataset):
+
+    def __init__(self, path, types=None, mode="train", num_trials=9, max_len=150):
+        self.path = path
+        self.types = types
+        self.mode = mode
+        self.num_trials = num_trials
+        self.max_len = max_len
+
+        self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
+        self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
+        self.h5file = h5py.File(f'{self.path}_{self.mode}.h5', 'r')
+        self.tot_trials = int(len(self.h5file.keys()) / 2)
+
+    def get_trial(self, trial):
+        # retrieve state embeddings and actions from cached file
+        with h5py.File(f'{self.path}_{self.mode}.h5', 'r') as f:
+            states_h5 = self.h5file[f'{trial}_s']
+            actions_h5 = self.h5file[f'{trial}_a']
+        l, state_dim = states_h5.shape
+        states = np.zeros((self.max_len, state_dim))
+        states[:l, :] = states_h5
+        actions = np.zeros((self.max_len))
+        actions[:l] = actions_h5
+        return states, actions, l
+
+    def __getitem__(self, idx):
+        # retrieve 2 expert trajectories
+        ep_num = idx // self.ep_combs
+        trial_d = ep_num * self.ep_combs + self.eps[idx % self.ep_combs][0]
+        trial_t = ep_num * self.ep_combs + self.eps[idx % self.ep_combs][1]
+        dem_states, dem_actions, dem_l = self.get_trial(trial_d)
+        test_states, test_actions, test_l = self.get_trial(trial_t)
+        test_mask = np.zeros((self.max_len))
+        test_mask[:test_l] = 1
+        return dem_states, dem_actions, test_states, test_actions, dem_l, test_l, test_mask
+
+    def __len__(self):
+        # totaltrials / 9 * 9p2 when num trials is 9
+        return self.tot_trials * (self.num_trials - 1)

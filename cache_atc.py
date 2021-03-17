@@ -67,7 +67,7 @@ for b, batch in enumerate(train_loader):
 
 # cache val dataset
 for b, batch in enumerate(val_loader):
-    print(f'val {b}/ {len(train_dataset)}')
+    print(f'val {b}/ {len(val_dataset)}')
     frames, actions = batch
     frame_embeddings = model(frames)
     frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()

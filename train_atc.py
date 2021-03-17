@@ -46,9 +46,11 @@ model = ATCEncoder(args)
 print("loading train dataset")
 train_dataset = FrameDataset(args.data_path, types=args.types, size=(args.size, args.size),
                              mode='train', process_data=args.cache)
+print(f"loaded train dataset with {len(train_dataset)} samples")
 print("loading val dataset")
 val_dataset = FrameDataset(args.data_path, types=args.types, size=(args.size, args.size),
                            mode='val', process_data=args.cache)
+print(f"loaded val dataset with {len(val_dataset)} samples")
 
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=args.num_workers,
                           pin_memory=True)
