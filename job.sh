@@ -13,4 +13,4 @@
 cd /data/kvg245/bib-tom
 source venv/bin/activate
 git pull
-python3 train_atc.py --data_path /misc/vlgscratch4/LakeGroup/kanishk/bg_train/ --types co pr --batch_size 256 --cache 0 --size 84 --max_epochs 100 --val_check_interval 0.5 --gpus 1 --gradient_clip_val 10 --num_workers 16 --track_grad_norm 2 --num_sanity_val_steps 2 --random_shift 1 --stochastic_weight_avg True
+python3 train_atc.py --data_path /misc/vlgscratch4/LakeGroup/kanishk/bg_train/ --types co pr --batch_size 512 --cache 0 --size 84 --max_epochs 100 --val_check_interval 0.5 --gpus 1 --gradient_clip_val 10 --num_workers 16 --track_grad_norm 2 --num_sanity_val_steps 2 --random_shift 1 --stochastic_weight_avg True --resume_from_checkpoint /data/kvg245/bib-tom/lightning_logs/version_910877/checkpoints/epoch=21-step=280207.ckpt
