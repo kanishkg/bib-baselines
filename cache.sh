@@ -13,4 +13,4 @@ cd /data/kvg245/bib-tom
 source venv/bin/activate
 git pull
 
-python3 cache_atc.py --data_path /misc/vlgscratch4/LakeGroup/kanishk/bg_train/ --types co pr --size 84  --ckpt /data/kvg245/bib-tom/lightning_logs/version_909749/checkpoints/epoch\=8-step\=110779.ckpt --cache_file noaug150k --gpus 1
+python3 cache_atc.py --data_path /misc/vlgscratch4/LakeGroup/kanishk/bg_train/ --types co pr --size 84 --ckpt /data/kvg245/bib-tom/lightning_logs/version_909749/checkpoints/epoch\=8-step\=110779.ckpt --cache_file noaug150k --gpus 1 --hparams /data/kvg245/bib-tom/lightning_logs/version_909749/hparams.yaml

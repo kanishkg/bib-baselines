@@ -24,6 +24,7 @@ parser.add_argument('--size', type=int, default=84)
 
 # checkpoint path
 parser.add_argument('--ckpt', type=str, default='./')
+parser.add_argument('--hparams', type=str, default='./')
 parser.add_argument('--cache_file', type=str, default='./')
 
 # add all the available trainer options to argparse
@@ -38,7 +39,7 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 
 # load model with weights and hparams in eval mode
-model = ATCEncoder.load_from_checkpoint(args.ckpt)
+model = ATCEncoder.load_from_checkpoint(args.ckpt, hparams_file=args.hparams)
 model.eval()
 model.freeze()
 
