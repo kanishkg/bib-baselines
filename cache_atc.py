@@ -9,7 +9,7 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 
 from atc.models import ATCEncoder
-from pemirl.datasets import CacheDataset
+from irl.datasets import CacheDataset
 
 parser = ArgumentParser()
 
