@@ -21,6 +21,7 @@ parser.add_argument('--data_path', type=str, default='./')
 parser.add_argument('--types', nargs='+', type=str, default=['co', 'pr'],
                     help='types of tasks used for training / testing')
 parser.add_argument('--size', type=int, default=84)
+parser.add_argument('--cache', type=int, default=0)
 
 # checkpoint path
 parser.add_argument('--ckpt', type=str, default='./')
