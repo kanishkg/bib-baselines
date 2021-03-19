@@ -205,10 +205,10 @@ class ATCEncoder(pl.LightningModule):
         self.lr = self.hparams.lr
         self.target_update_interval = self.hparams.target_update_interval
         self.target_update_tau = self.hparams.target_update_tau
-        self.encoder = EncoderModel(image_shape=[3, hparams.size, hparams.size], latent_size=hparams.latent_size,
-                                    channels=hparams.channels, kernel_sizes=hparams.filter, strides=hparams.strides)
+        self.encoder = EncoderModel(image_shape=[3, self.hparams.size, self.hparams.size], latent_size=self.hparams.latent_size,
+                                    channels=self.hparams.channels, kernel_sizes=self.hparams.filter, strides=self.hparams.strides)
         self.target_encoder = copy.deepcopy(self.encoder)
-        self.contrast_model = ContrastModel(hparams.latent_size, hparams.anchor_size)
+        self.contrast_model = ContrastModel(self.hparams.latent_size, self.hparams.anchor_size)
         self.celoss = nn.CrossEntropyLoss()
 
     def forward(self, input):
