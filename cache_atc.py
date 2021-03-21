@@ -63,7 +63,7 @@ for b, batch in enumerate(train_loader):
     frame_embeddings = model(frames)
     frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
     actions = actions[0, :].cpu().numpy()
-    with h5py.File(f'{os.path.join(args.path, args.cache_file)}_train.h5', 'a') as f:
+    with h5py.File(f'{os.path.join(args.data_path, args.cache_file)}_train.h5', 'a') as f:
         f.create_dataset(f'{b}_s', data=frame_embeddings)
         f.create_dataset(f'{b}_a', data=actions)
 
@@ -74,6 +74,6 @@ for b, batch in enumerate(val_loader):
     frame_embeddings = model(frames)
     frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
     actions = actions[0, :].cpu().numpy()
-    with h5py.File(f'{os.path.join(args.path, args.cache_file)}_val.h5', 'a') as f:
+    with h5py.File(f'{os.path.join(args.data_path, args.cache_file)}_val.h5', 'a') as f:
         f.create_dataset(f'{b}_s', data=frame_embeddings)
         f.create_dataset(f'{b}_a', data=actions)
