@@ -89,7 +89,7 @@ class CacheDataset(torch.utils.data.Dataset):
             self.data_tuples = index_dict['data_tuples']
 
     def _get_frames(self, video, frames_idx):
-        cap = cv2.VideoCapture(video[0])
+        cap = cv2.VideoCapture(video)
         frames = []
         # read frames at ids and resize
         for i, f in enumerate(frames_idx):
