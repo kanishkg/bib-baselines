@@ -69,7 +69,7 @@ class CacheDataset(torch.utils.data.Dataset):
                 for e, l in enumerate(ep_lens):
                     self.data_tuples.append([])
                     # skip first 30 frames and last 83 frames
-                    for f in range(30, l - 83 - 1):
+                    for f in range(30, l - 83):
                         # find action taken; this calculation is approximate
                         f0x, f0y = state[e][f]['agent'][0]
                         f1x, f1y = state[e][f + 1]['agent'][0]
