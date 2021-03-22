@@ -78,7 +78,7 @@ class CacheDataset(torch.utils.data.Dataset):
                         action = ACTION_LIST.index([dx, dy])
                         self.data_tuples[-1].append((v, past_len + f, action))
                     print(len(self.data_tuples[-1]))
-                    assert len(self.data_tuples[-1]==9)
+                    assert len(self.data_tuples[-1]) > 0
                     past_len += l
 
             index_dict = {'data_tuples': self.data_tuples}
