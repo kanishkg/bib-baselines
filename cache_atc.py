@@ -53,8 +53,8 @@ val_dataset = CacheDataset(args.data_path, types=args.types, size=(args.size, ar
                            mode='val', process_data=args.cache)
 
 train_loader = DataLoader(dataset=train_dataset, batch_size=1, num_workers=1,
-                          pin_memory=True)
-val_loader = DataLoader(dataset=val_dataset, batch_size=1, num_workers=1, pin_memory=True)
+                          pin_memory=True, shuffle=False)
+val_loader = DataLoader(dataset=val_dataset, batch_size=1, num_workers=1, pin_memory=True, shuffle=False)
 
 # cache train dataset
 for b, batch in enumerate(train_loader):
