@@ -109,6 +109,7 @@ class CacheDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         # works only with batch size of 1
+        print(len(self.data_tuples[idx]))
         print(self.data_tuples[idx][0][0])
         video = self.data_tuples[idx][0][0]
         frames_idx = [d[1] for d in self.data_tuples[idx]]
