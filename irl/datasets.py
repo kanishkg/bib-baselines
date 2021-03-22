@@ -12,6 +12,7 @@ ACTION_LIST = [[0, 1], [1, 0], [1, 1],
                [0, -1], [-1, 0], [-1, -1],
                [0, 0], [-1, 1], [1, -1]]
 
+
 #
 # def collate_function(batch):
 #     dem_states = torch.stack([item[0] for item in batch])
@@ -86,6 +87,10 @@ class CacheDataset(torch.utils.data.Dataset):
             with open(os.path.join(self.path, f'index_bib_{mode}.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_tuples = index_dict['data_tuples']
+        tuples = []
+        for v_tuples in self.data_tuples:
+            tuples += v_tuples
+        self.data_tuples = tuples
 
     def _get_frames(self, video, frames_idx):
         cap = cv2.VideoCapture(video)
