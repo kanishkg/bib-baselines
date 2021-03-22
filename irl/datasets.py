@@ -87,13 +87,9 @@ class CacheDataset(torch.utils.data.Dataset):
             with open(os.path.join(self.path, f'index_bib_{mode}.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_tuples = index_dict['data_tuples']
-        tuples = []
-        for v_tuples in self.data_tuples:
-            tuples += v_tuples
-        self.data_tuples = tuples
 
     def _get_frames(self, video, frames_idx):
-        cap = cv2.VideoCapture(video)
+        cap = cv2.VideoCapture(video[0])
         frames = []
         # read frames at ids and resize
         for i, f in enumerate(frames_idx):
@@ -113,7 +109,7 @@ class CacheDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         # works only with batch size of 1
-        video = self.data_tuples[idx][0][0]
+        video = [d[0] for d in self.data_tuples[idx]]
         frames_idx = [d[1] for d in self.data_tuples[idx]]
         actions = torch.tensor([d[2] for d in self.data_tuples[idx]])
         frames = self._get_frames(video, frames_idx)
