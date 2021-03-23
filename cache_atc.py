@@ -57,15 +57,15 @@ train_loader = DataLoader(dataset=train_dataset, batch_size=1, num_workers=1,
 val_loader = DataLoader(dataset=val_dataset, batch_size=1, num_workers=1, pin_memory=True, shuffle=False)
 
 # cache train dataset
-for b, batch in enumerate(train_loader):
-    print(f'train {b}/ {len(train_dataset)}')
-    frames, actions = batch
-    frame_embeddings = model(frames)
-    frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
-    actions = actions[0, :].cpu().numpy()
-    with h5py.File(f'{os.path.join(args.data_path, args.cache_file)}_train.h5', 'a') as f:
-        f.create_dataset(f'{b}_s', data=frame_embeddings)
-        f.create_dataset(f'{b}_a', data=actions)
+# for b, batch in enumerate(train_loader):
+#     print(f'train {b}/ {len(train_dataset)}')
+#     frames, actions = batch
+#     frame_embeddings = model(frames)
+#     frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
+#     actions = actions[0, :].cpu().numpy()
+#     with h5py.File(f'{os.path.join(args.data_path, args.cache_file)}_train.h5', 'a') as f:
+#         f.create_dataset(f'{b}_s', data=frame_embeddings)
+#         f.create_dataset(f'{b}_a', data=actions)
 
 # cache val dataset
 for b, batch in enumerate(val_loader):
