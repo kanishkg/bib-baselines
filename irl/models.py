@@ -15,13 +15,10 @@ class ContextImitation(pl.LightningModule):
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument('--lr', type=float, default=1e-4)
-        parser.add_argument('--latent_size', type=int, default=128)
-        parser.add_argument('--anchor_size', type=int, default=256)
-        parser.add_argument('--channels', nargs='+', type=int, default=[32, 32, 32, 32])
-        parser.add_argument('--filter', nargs='+', type=int, default=[3, 3, 3, 3])
-        parser.add_argument('--strides', nargs='+', type=int, default=[2, 2, 2, 1])
-        parser.add_argument('--target_update_interval', type=int, default=1)
-        parser.add_argument('--target_update_tau', type=float, default=0.01)
+        parser.add_argument('--state_dim', type=int, default=128)
+        parser.add_argument('--action_dim', type=int, default=9)
+        parser.add_argument('--beta', type=float, default=0.01)
+        parser.add_argument('--context_dim', nargs='+', type=int, default=32)
         return parser
 
     def __init__(self, hparams):
@@ -31,7 +28,7 @@ class ContextImitation(pl.LightningModule):
         self.lr = self.hparams.lr
         self.state_dim = self.hparams.state_dim
         self.action_dim = self.hparams.action_dim
-        self.context_dim = self.hparams.action_dim
+        self.context_dim = self.hparams.context_dim
         self.beta = self.hparams.beta
 
         self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
@@ -45,7 +42,7 @@ class ContextImitation(pl.LightningModule):
         self.past_samples = []
 
     def training_step(self, batch, batch_idx):
-        dem_states, dem_actions, test_states, test_actions, dem_l, test_l, test_mask = batch
+        dem_states, dem_actions, test_states, test_actions = batch
 
         # concatenate states and actions to get expert trajectory
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
