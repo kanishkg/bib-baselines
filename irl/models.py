@@ -94,8 +94,10 @@ class ContextImitation(pl.LightningModule):
         test_states.double()
 
         # concatenate states and actions to get expert trajectory
+        print(dem_actions, dem_states)
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
-
+        dem_traj.double()
+        print(dem_traj)
         # embed expert trajectory to get a context embedding batch x samples x dim
         context_mean_samples = self.context_enc_mean(dem_traj)
         context_std_samples = self.context_enc_std(dem_traj)
