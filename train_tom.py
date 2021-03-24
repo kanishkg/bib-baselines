@@ -36,7 +36,7 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 
 # init model
-model = ATCEncoder(args)
+model = ContextImitation(args)
 
 # load train and val datasets and loaders
 train_dataset = TransitionDataset(args.data_path, types=args.types, mode='train')
