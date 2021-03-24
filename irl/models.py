@@ -2,7 +2,6 @@ import copy
 from argparse import ArgumentParser
 
 import torch
-from torch import nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 
@@ -43,27 +42,26 @@ class ContextImitation(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         dem_states, dem_actions, test_states, test_actions = batch
-        print(dem_actions, dem_states)
         dem_states = dem_states.float()
         dem_actions = dem_actions.float()
         test_actions = test_actions.float()
         test_states = test_states.float()
 
         # concatenate states and actions to get expert trajectory
-        print(dem_actions, dem_states)
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
-        dem_traj = dem_traj.float()
-        print(dem_traj)
 
         # embed expert trajectory to get a context embedding batch x samples x dim
         context_mean_samples = self.context_enc_mean(dem_traj)
         context_std_samples = self.context_enc_std(dem_traj)
 
         # combine contexts of each meta episode
+        sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
+        mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
+
         context_std_squared = torch.clamp(context_std_samples * context_std_samples, min=1e-7)
-        context_std_squared = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
-        context_mean = context_std_squared * torch.sum(context_mean_samples / context_std_squared, dim=1)
-        context_std = torch.sqrt(context_std_squared)
+        context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
+        context_mean = context_std_squared_reduced * torch.sum(context_mean_samples / context_std_squared, dim=1)
+        context_std = torch.sqrt(context_std_squared_reduced)
 
         # sample context variable
         context_dist = torch.distributions.normal.Normal(context_mean, context_std)
