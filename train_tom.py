@@ -6,8 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from pytorch_lightning import Trainer
 
-from atc.datasets import FrameDataset
-from atc.models import ATCEncoder
+from irl.models import ContextImitation
 from irl.datasets import TransitionDataset
 
 parser = ArgumentParser()
@@ -23,7 +22,7 @@ parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--batch_size', type=int, default=256)
 
 # add model specific args
-parser = ATCEncoder.add_model_specific_args(parser)
+parser = ContextImitation.add_model_specific_args(parser)
 
 # add all the available trainer options to argparse
 parser = Trainer.add_argparse_args(parser)
