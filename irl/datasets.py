@@ -138,8 +138,8 @@ class TransitionDataset(torch.utils.data.Dataset):
         assert len(trial_len) >= num_transitions
         for t, n in trial_len[:num_transitions]:
             with h5py.File(f'{self.path}_{self.mode}.h5', 'r') as f:
-                states.append(f[f'{t}_s'][t, :])
-                action_id = f[f'{t}_a'][t]
+                states.append(f[f'{t}_s'][n, :])
+                action_id = f[f'{t}_a'][n]
                 action = np.zeros((len(ACTION_LIST)))
                 action[action_id] = 1
                 actions.append(action)
