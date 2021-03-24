@@ -119,7 +119,6 @@ class TransitionDataset(torch.utils.data.Dataset):
         self.types = types
         self.mode = mode
         self.num_trials = num_trials
-        self.max_len = max_len
         self.num_context = num_context
         self.num_test = num_test
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
