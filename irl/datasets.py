@@ -123,7 +123,6 @@ class TransitionDataset(torch.utils.data.Dataset):
         self.num_test = num_test
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
-        self.h5file = h5py.File(f'{self.path}_{self.mode}.h5', 'r')
         self.tot_trials = len(self.h5file.keys()) // 2
 
     def get_trial(self, trials, num_transitions):
@@ -132,12 +131,14 @@ class TransitionDataset(torch.utils.data.Dataset):
         actions = []
         trial_len = []
         for t in trials:
-            trial_len += [(t, n) for n in range(len(self.h5file[f'{t}_s']))]
+            with h5py.File(f'{self.path}_{self.mode}.h5', 'r') as f:
+                trial_len += [(t, n) for n in range(len(f[f'{t}_s']))]
         random.shuffle(trial_len)
         assert len(trial_len) >= num_transitions
         for t, n in trial_len[:num_transitions]:
-            states.append(self.h5file[f'{t}_s'][t, :])
-            actions.append(self.h5file[f'{t}_a'][t, :])
+            with h5py.File(f'{self.path}_{self.mode}.h5', 'r') as f:
+                states.append(f[f'{t}_s'][t, :])
+                actions.append(f[f'{t}_a'][t, :])
         return states, actions
 
     def __getitem__(self, idx):
