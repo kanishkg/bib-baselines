@@ -87,7 +87,7 @@ class ContextImitation(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        dem_states, dem_actions, test_states, test_actions, dem_l, test_l, test_mask = batch
+        dem_states, dem_actions, test_states, test_actions = batch
 
         # concatenate states and actions to get expert trajectory
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
