@@ -114,7 +114,7 @@ class CacheDataset(torch.utils.data.Dataset):
 
 class TransitionDataset(torch.utils.data.Dataset):
 
-    def __init__(self, path, types=None, mode="train", num_context=30, num_test=10, num_trials=9, max_len=150):
+    def __init__(self, path, types=None, mode="train", num_context=30, num_test=10, num_trials=9):
         self.path = path
         self.types = types
         self.mode = mode
