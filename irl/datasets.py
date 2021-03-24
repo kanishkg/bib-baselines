@@ -123,7 +123,8 @@ class TransitionDataset(torch.utils.data.Dataset):
         self.num_test = num_test
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
-        self.tot_trials = len(self.h5file.keys()) // 2
+        with h5py.File(f'{self.path}_{self.mode}.h5', 'r') as f:
+            self.tot_trials = len(f.keys()) // 2
 
     def get_trial(self, trials, num_transitions):
         # retrieve state embeddings and actions from cached file
