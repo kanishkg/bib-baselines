@@ -143,8 +143,8 @@ class TransitionDataset(torch.utils.data.Dataset):
                 action = np.zeros((len(ACTION_LIST)))
                 action[action_id] = 1
                 actions.append(action)
-        states = torch.stack(states, dim=0)
-        actions = torch.stack(actions, dim=0)
+        states = torch.tensor(np.array(states))
+        actions = torch.tensor(np.array(actions))
         return states, actions
 
     def __getitem__(self, idx):
