@@ -88,6 +88,7 @@ class ContextImitation(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         dem_states, dem_actions, test_states, test_actions = batch
+        print(dem_actions, dem_states)
         dem_states.double()
         dem_actions.double()
         test_actions.double()
