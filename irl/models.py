@@ -102,15 +102,17 @@ class ContextImitation(pl.LightningModule):
         context_mean = context_std_squared * torch.sum(context_mean_samples / context_std_squared, dim=1)
         context_std = torch.sqrt(context_std_squared)
 
-        # sample context variable
+        # sample context variable batch x context-size
         context_dist = torch.distributions.normal.Normal(context_mean, context_std)
         prior_dist = torch.distributions.Normal(torch.zeros_like(context_mean), torch.ones_like(context_std))
 
         context = torch.normal(context_mean, context_std)
 
-        # concat context embedding to the state embedding of test trajectory
-        test_context_states = torch.cat([context, test_states], dim=1)
-
+        # concat context embedding to the state embedding of test trajectory batch x test-samples x dim+context-size
+        test_context_states = torch.cat([context.unsqueeze(1), test_states], dim=2)
+        b, s, d = test_context_states.size()
+        test_context_states = test_context_states.view(b*s, d)
+        test_actions = test_actions.view(b*s, -1)
         # for each state in the test states calculate action
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
         test_context_states_actions_pred = torch.cat([context, test_states, test_actions_pred], dim=1)
