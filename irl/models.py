@@ -77,8 +77,9 @@ class ContextImitation(pl.LightningModule):
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
 
         # calculate policy likelihood loss for imitation
-        imitation_loss = - torch.log(test_actions_pred + 1e-8) * test_actions
-        kl_loss = context_dist.log_prob(context) - prior_dist.log_prob(context)
+        imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
+        kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1),dim=0)
+
         loss = imitation_loss + self.beta * kl_loss
 
         correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
