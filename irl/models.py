@@ -70,20 +70,19 @@ class ContextImitation(pl.LightningModule):
         # concat context embedding to the state embedding of test trajectory
         test_context_states = torch.cat([context.unsqueeze(1), test_states], dim=2)
         b, s, d = test_context_states.size()
-        test_context_states = test_context_states.view(b*s, d)
-        test_actions = test_actions.view(b*s, -1)
+        test_context_states = test_context_states.view(b * s, d)
+        test_actions = test_actions.view(b * s, -1)
 
         # for each state in the test states calculate action
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
-        test_context_states_actions_pred = torch.cat([context, test_states, test_actions_pred], dim=1)
 
         # calculate policy likelihood loss for imitation
-        imitation_loss = - torch.log(test_context_states_actions_pred + 1e-8) * test_actions
+        imitation_loss = - torch.log(test_actions_pred + 1e-8) * test_actions
         kl_loss = context_dist.log_prob(context) - prior_dist.log_prob(context)
         loss = imitation_loss + self.beta * kl_loss
 
-        correct = torch.argmax(test_context_states_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
-                                                                                                 dim=1)
+        correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
+                                                                                  dim=1)
         accuracy = torch.mean(correct.float())
 
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -118,19 +117,19 @@ class ContextImitation(pl.LightningModule):
         # concat context embedding to the state embedding of test trajectory batch x test-samples x dim+context-size
         test_context_states = torch.cat([context.unsqueeze(1), test_states], dim=2)
         b, s, d = test_context_states.size()
-        test_context_states = test_context_states.view(b*s, d)
-        test_actions = test_actions.view(b*s, -1)
+        test_context_states = test_context_states.view(b * s, d)
+        test_actions = test_actions.view(b * s, -1)
+
         # for each state in the test states calculate action
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
-        test_context_states_actions_pred = torch.cat([context, test_states, test_actions_pred], dim=1)
 
         # calculate policy likelihood loss for imitation
-        imitation_loss = - torch.log(test_context_states_actions_pred + 1e-8) * test_actions
+        imitation_loss = - torch.log(test_actions_pred + 1e-8) * test_actions
         kl_loss = context_dist.log_prob(context) - prior_dist.log_prob(context)
         loss = imitation_loss + self.beta * kl_loss
 
-        correct = torch.argmax(test_context_states_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
-                                                                                                 dim=1)
+        correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
+                                                                                  dim=1)
         accuracy = torch.mean(correct.float())
 
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
