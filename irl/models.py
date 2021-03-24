@@ -55,8 +55,6 @@ class ContextImitation(pl.LightningModule):
         context_std_samples = self.context_enc_std(dem_traj)
 
         # combine contexts of each meta episode
-        sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
-        mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
 
         context_std_squared = torch.clamp(context_std_samples * context_std_samples, min=1e-7)
         context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
@@ -102,10 +100,11 @@ class ContextImitation(pl.LightningModule):
         context_std_samples = self.context_enc_std(dem_traj)
 
         # combine contexts of each meta episode
+
         context_std_squared = torch.clamp(context_std_samples * context_std_samples, min=1e-7)
-        context_std_squared = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
-        context_mean = context_std_squared * torch.sum(context_mean_samples / context_std_squared, dim=1)
-        context_std = torch.sqrt(context_std_squared)
+        context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
+        context_mean = context_std_squared_reduced * torch.sum(context_mean_samples / context_std_squared, dim=1)
+        context_std = torch.sqrt(context_std_squared_reduced)
 
         # sample context variable batch x context-size
         context_dist = torch.distributions.normal.Normal(context_mean, context_std)
