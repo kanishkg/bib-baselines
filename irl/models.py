@@ -95,9 +95,14 @@ class ContextImitation(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         dem_states, dem_actions, test_states, test_actions = batch
+
+        dem_states = dem_states.float()
+        dem_actions = dem_actions.float()
+        test_actions = test_actions.float()
+        test_states = test_states.float()
+
         # concatenate states and actions to get expert trajectory
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
-        dem_traj.float()
         # embed expert trajectory to get a context embedding batch x samples x dim
         context_mean_samples = self.context_enc_mean(dem_traj)
         context_std_samples = self.context_enc_std(dem_traj)
