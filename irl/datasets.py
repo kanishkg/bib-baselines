@@ -1,6 +1,7 @@
 import json
 import os
 import random
+import pickle
 
 import cv2
 import h5py
@@ -123,8 +124,9 @@ class TransitionDataset(torch.utils.data.Dataset):
         self.num_test = num_test
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
-        with h5py.File(f'{self.path}_{self.mode}.h5', 'r') as f:
-            self.tot_trials = len(f.keys()) // 2
+        with open(f'{self.path}_{self.mode}.pickle', 'rb') as handle:
+            self.data = pickle.load(handle)
+        self.tot_trials = len(self.data.keys()) // 2
 
     def get_trial(self, trials, num_transitions):
         # retrieve state embeddings and actions from cached file
@@ -132,17 +134,15 @@ class TransitionDataset(torch.utils.data.Dataset):
         actions = []
         trial_len = []
         for t in trials:
-            with h5py.File(f'{self.path}_{self.mode}.h5', 'r') as f:
-                trial_len += [(t, n) for n in range(len(f[f'{t}_s']))]
+            trial_len += [(t, n) for n in range(len(self.data[f'{t}_s']))]
         random.shuffle(trial_len)
         assert len(trial_len) >= num_transitions
         for t, n in trial_len[:num_transitions]:
-            with h5py.File(f'{self.path}_{self.mode}.h5', 'r') as f:
-                states.append(f[f'{t}_s'][n, :])
-                action_id = f[f'{t}_a'][n]
-                action = np.zeros((len(ACTION_LIST)))
-                action[action_id] = 1
-                actions.append(action)
+            states.append(self.data[f'{t}_s'][n, :])
+            action_id = self.data[f'{t}_a'][n]
+            action = np.zeros((len(ACTION_LIST)))
+            action[action_id] = 1
+            actions.append(action)
         states = torch.tensor(np.array(states)).double()
         actions = torch.tensor(np.array(actions)).double()
         return states, actions
