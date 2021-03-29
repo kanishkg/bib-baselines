@@ -54,6 +54,8 @@ train_loader = DataLoader(dataset=train_dataset, batch_size=1, num_workers=1,
 print("loading val dataset")
 val_datasets = []
 val_loaders = []
+args.types = sorted(args.types)
+
 for t in args.types:
     val_datasets.append(CacheDataset(args.data_path, types=[t], size=(args.size, args.size),
                                      mode='val', process_data=args.cache))
