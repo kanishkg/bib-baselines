@@ -33,6 +33,7 @@ parser = Trainer.add_argparse_args(parser)
 
 # parse args
 args = parser.parse_args()
+args.types = sorted(args.types)
 print(args)
 
 random.seed(args.seed)
