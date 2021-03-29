@@ -4,8 +4,10 @@ from argparse import ArgumentParser
 import torch
 import torch.nn.functional as F
 import pytorch_lightning as pl
+from torch.utils.data import DataLoader
 
 from atc.models import MlpModel
+from irl.datasets import TransitionDataset
 
 
 class ContextImitation(pl.LightningModule):
@@ -78,7 +80,7 @@ class ContextImitation(pl.LightningModule):
 
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
-        kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1),dim=0)
+        kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
 
         loss = imitation_loss + self.beta * kl_loss
 
@@ -93,7 +95,7 @@ class ContextImitation(pl.LightningModule):
 
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx):
         dem_states, dem_actions, test_states, test_actions = batch
 
         dem_states = dem_states.float()
@@ -131,20 +133,34 @@ class ContextImitation(pl.LightningModule):
 
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
-        kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1),dim=0)
+        kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
         loss = imitation_loss + self.beta * kl_loss
 
         correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
                                                                                   dim=1)
         accuracy = torch.mean(correct.float())
 
-        self.log('val_loss', loss, on_epoch=True, logger=True)
-        self.log('val_imitation_loss', imitation_loss,  prog_bar=True, logger=True)
-        self.log('val_kl_loss', kl_loss, prog_bar=True, logger=True)
-        self.log('val_accuracy', accuracy, prog_bar=True, logger=True)
+        self.log(f'val_loss_{dataloader_idx}', loss, on_epoch=True, logger=True)
+        self.log(f'val_imitation_loss_{dataloader_idx}', imitation_loss, prog_bar=True, logger=True)
+        self.log(f'val_kl_loss_{dataloader_idx}', kl_loss, prog_bar=True, logger=True)
+        self.log(f'val_accuracy_{dataloader_idx}', accuracy, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
+
+    def train_dataloader(self):
+        train_dataset = TransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train')
+        train_loader = DataLoader(dataset=train_dataset, batch_size=self.hparams.batch_size,
+                                  num_workers=self.hparams.num_workers, pin_memory=True, shuffle=True)
+        return train_loader
+
+    def val_dataloader(self):
+        val_datasets = []
+        val_loaders = []
+        for t in self.hparams.types:
+            val_datasets.append(TransitionDataset(self.hparams.data_path, types=[t], mode='val'))
+            val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=self.hparams.batch_size,
+                                          num_workers=self.hparams.num_workers, pin_memory=True, shuffle=False))
 
 
 class IRLNoDynamics(pl.LightningModule):
