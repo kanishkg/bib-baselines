@@ -2,7 +2,7 @@ import os
 import random
 from argparse import ArgumentParser
 
-import h5py as h5py
+import pickle
 import numpy as np
 import torch
 from pytorch_lightning import Trainer
@@ -48,32 +48,44 @@ model.freeze()
 print("loading train dataset")
 train_dataset = CacheDataset(args.data_path, types=args.types, size=(args.size, args.size),
                              mode='train', process_data=args.cache)
-print("loading val dataset")
-val_dataset = CacheDataset(args.data_path, types=args.types, size=(args.size, args.size),
-                           mode='val', process_data=args.cache)
-
 train_loader = DataLoader(dataset=train_dataset, batch_size=1, num_workers=1,
                           pin_memory=True, shuffle=False)
-val_loader = DataLoader(dataset=val_dataset, batch_size=1, num_workers=1, pin_memory=True, shuffle=False)
+
+print("loading val dataset")
+val_datasets = []
+val_loaders = []
+for t in args.types:
+    val_datasets.append(CacheDataset(args.data_path, types=[t], size=(args.size, args.size),
+                                     mode='val', process_data=args.cache))
+
+    val_loaders.append(
+        DataLoader(dataset=val_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
 
 # cache train dataset
+store_dict = {}
 for b, batch in enumerate(train_loader):
     print(f'train {b}/ {len(train_dataset)}')
     frames, actions = batch
     frame_embeddings = model(frames)
     frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
     actions = actions[0, :].cpu().numpy()
-    with h5py.File(f'{os.path.join(args.data_path, args.cache_file)}_train.h5', 'a') as f:
-        f.create_dataset(f'{b}_s', data=frame_embeddings)
-        f.create_dataset(f'{b}_a', data=actions)
+    store_dict[f'{b}_s'] = frame_embeddings
+    store_dict[f'{b}_a'] = actions
+
+type_str = '_'.join(args.types)
+with open(f'{os.path.join(args.data_path, args.cache_file)}_train_{type_str}.pickle', 'wb') as handle:
+    pickle.dump(store_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # cache val dataset
-# for b, batch in enumerate(val_loader):
-#     print(f'val {b}/ {len(val_dataset)}')
-#     frames, actions = batch
-#     frame_embeddings = model(frames)
-#     frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
-#     actions = actions[0, :].cpu().numpy()
-#     with h5py.File(f'{os.path.join(args.data_path, args.cache_file)}_val.h5', 'a') as f:
-#         f.create_dataset(f'{b}_s', data=frame_embeddings)
-#         f.create_dataset(f'{b}_a', data=actions)
+for v, t in zip(val_loaders, args.types):
+    store_dict = {}
+    for b, batch in enumerate(v):
+        print(f'val {b}')
+        frames, actions = batch
+        frame_embeddings = model(frames)
+        frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
+        actions = actions[0, :].cpu().numpy()
+        store_dict[f'{b}_s'] = frame_embeddings
+        store_dict[f'{b}_a'] = actions
+    with open(f'{os.path.join(args.data_path, args.cache_file)}_val_{t}.pickle', 'wb') as handle:
+        pickle.dump(store_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)

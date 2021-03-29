@@ -26,6 +26,7 @@ class CacheDataset(torch.utils.data.Dataset):
         self.path_list = []
 
         # read video files
+        type_str = '_'.join(types)
         for t in types:
             print(f'reading files of type {t} in {mode}')
             self.path_list += [os.path.join(self.path, x) for x in os.listdir(self.path) if
@@ -38,14 +39,16 @@ class CacheDataset(torch.utils.data.Dataset):
 
         self.data_tuples = []
         # split for train and val
+        indexes = None
         if mode == 'train':
-            self.path_list = self.path_list[:int(0.8 * len(self.path_list))]
-            self.json_list = self.json_list[:int(0.8 * len(self.json_list))]
+            indexes = range(int(0.8 * len(self.json_list)))
         elif mode == 'val':
-            self.path_list = self.path_list[int(0.8 * len(self.path_list)):]
-            self.json_list = self.json_list[int(0.8 * len(self.json_list)):]
+            indexes = range(int(0.8 * len(self.json_list)), len(self.json_list))
         elif mode == 'test':
-            pass
+            raise NotImplementedError
+
+        self.path_list = self.path_list[indexes]
+        self.json_list = self.json_list[indexes]
 
         if process_data:
 
@@ -72,11 +75,11 @@ class CacheDataset(torch.utils.data.Dataset):
                     past_len += l
 
             index_dict = {'data_tuples': self.data_tuples}
-            with open(os.path.join(self.path, f'index_bib_{mode}.json'), 'w') as fp:
+            with open(os.path.join(self.path, f'index_bib_{mode}_{type_str}.json'), 'w') as fp:
                 json.dump(index_dict, fp)
 
         else:
-            with open(os.path.join(self.path, f'index_bib_{mode}.json'), 'r') as fp:
+            with open(os.path.join(self.path, f'index_bib_{mode}_{type_str}.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_tuples = index_dict['data_tuples']
 
