@@ -27,7 +27,6 @@ class CacheDataset(torch.utils.data.Dataset):
 
         # read video files
         type_str = '_'.join(types)
-        indexes = None
 
         for t in types:
             print(f'reading files of type {t} in {mode}')
@@ -39,14 +38,11 @@ class CacheDataset(torch.utils.data.Dataset):
             jsons = sorted(jsons)
 
             if mode == 'train':
-                paths = paths[:int(0.8 * len(jsons))]
-                jsons = jsons[:int(0.8 * len(jsons))]
+                self.path_list += paths[:int(0.8 * len(jsons))]
+                self.json_list = jsons[:int(0.8 * len(jsons))]
             elif mode == 'val':
-                paths = paths[int(0.8 * len(jsons)):]
-                jsons = jsons[int(0.8 * len(jsons)):]
-
-            self.path_list += paths[indexes]
-            self.json_list += jsons[indexes]
+                self.path_list += paths[int(0.8 * len(jsons)):]
+                self.json_list += jsons[int(0.8 * len(jsons)):]
 
         self.data_tuples = []
 
