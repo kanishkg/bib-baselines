@@ -55,7 +55,7 @@ print("loading val dataset")
 val_datasets = []
 val_loaders = []
 args.types = sorted(args.types)
-
+print(args.types)
 for t in args.types:
     val_datasets.append(CacheDataset(args.data_path, types=[t], size=(args.size, args.size),
                                      mode='val', process_data=args.cache))
