@@ -40,13 +40,15 @@ model = ContextImitation(args)
 
 # load train and val datasets and loaders
 train_dataset = TransitionDataset(args.data_path, types=args.types, mode='train')
-val_dataset = TransitionDataset(args.data_path, types=args.types, mode='val')
-
 train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, num_workers=args.num_workers,
                           pin_memory=True, shuffle=True)
-val_loader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True,
-                        shuffle=False)
+val_datasets = []
+val_loaders = []
+for t in args.types:
+    val_datasets.append(TransitionDataset(args.data_path, types=[t], mode='val'))
+    val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=args.batch_size, num_workers=args.num_workers,
+                            pin_memory=True, shuffle=False))
 
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
-trainer.fit(model, train_loader, val_loader)
+trainer.fit(model, train_loader, val_loaders)

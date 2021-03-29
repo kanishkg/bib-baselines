@@ -123,7 +123,8 @@ class TransitionDataset(torch.utils.data.Dataset):
         self.num_test = num_test
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
-        with open(f'{self.path}_{self.mode}.pickle', 'rb') as handle:
+        types_str = '_'.join(self.types)
+        with open(f'{self.path}_{self.mode}_{types_str}.pickle', 'rb') as handle:
             self.data = pickle.load(handle)
         self.tot_trials = len(self.data.keys()) // 2
 
