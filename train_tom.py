@@ -43,4 +43,4 @@ model = ContextImitation(args)
 
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
-trainer.fit(model, train_loader, val_loaders)
+trainer.fit(model)
