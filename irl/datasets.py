@@ -39,7 +39,7 @@ class CacheDataset(torch.utils.data.Dataset):
 
             if mode == 'train':
                 self.path_list += paths[:int(0.8 * len(jsons))]
-                self.json_list = jsons[:int(0.8 * len(jsons))]
+                self.json_list += jsons[:int(0.8 * len(jsons))]
             elif mode == 'val':
                 self.path_list += paths[int(0.8 * len(jsons)):]
                 self.json_list += jsons[int(0.8 * len(jsons)):]
