@@ -27,28 +27,25 @@ class CacheDataset(torch.utils.data.Dataset):
 
         # read video files
         type_str = '_'.join(types)
+        indexes = None
         for t in types:
             print(f'reading files of type {t} in {mode}')
-            self.path_list += [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                               x.endswith(f'{t}e.mp4')]
-            self.json_list += [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                               x.endswith(f'{t}e.json')]
+            paths = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}e.mp4')]
+            jsons = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}e.json')]
+            paths = sorted(paths)
+            jsons = sorted(jsons)
 
-        self.path_list = sorted(self.path_list)
-        self.json_list = sorted(self.json_list)
+            if mode == 'train':
+                indexes = range(int(0.8 * len(jsons)))
+            elif mode == 'val':
+                indexes = range(int(0.8 * len(jsons)), len(jsons))
+
+            self.path_list += paths[indexes]
+            self.json_list += jsons[indexes]
 
         self.data_tuples = []
-        # split for train and val
-        indexes = None
-        if mode == 'train':
-            indexes = range(int(0.8 * len(self.json_list)))
-        elif mode == 'val':
-            indexes = range(int(0.8 * len(self.json_list)), len(self.json_list))
-        elif mode == 'test':
-            raise NotImplementedError
-
-        self.path_list = self.path_list[indexes]
-        self.json_list = self.json_list[indexes]
 
         if process_data:
 
