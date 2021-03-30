@@ -42,7 +42,7 @@ class ContextImitation(pl.LightningModule):
 
         self.past_samples = []
 
-    def training_step(self, batch, batch_idx):
+    def forward(self, batch):
         dem_states, dem_actions, test_states, test_actions = batch
         dem_states = dem_states.float()
         dem_actions = dem_actions.float()
@@ -77,6 +77,12 @@ class ContextImitation(pl.LightningModule):
 
         # for each state in the test states calculate action
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
+        return context_dist, prior_dist, test_actions, test_actions_pred
+
+
+    def training_step(self, batch, batch_idx):
+
+        context_dist, prior_dist, test_axtions, test_actions_pred = self.forward(batch)
 
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
@@ -96,40 +102,8 @@ class ContextImitation(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
-        dem_states, dem_actions, test_states, test_actions = batch
 
-        dem_states = dem_states.float()
-        dem_actions = dem_actions.float()
-        test_actions = test_actions.float()
-        test_states = test_states.float()
-
-        # concatenate states and actions to get expert trajectory
-        dem_traj = torch.cat([dem_states, dem_actions], dim=2)
-        # embed expert trajectory to get a context embedding batch x samples x dim
-        context_mean_samples = self.context_enc_mean(dem_traj)
-        context_std_samples = self.context_enc_std(dem_traj)
-
-        # combine contexts of each meta episode
-
-        context_std_squared = torch.clamp(context_std_samples * context_std_samples, min=1e-7)
-        context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
-        context_mean = context_std_squared_reduced * torch.sum(context_mean_samples / context_std_squared, dim=1)
-        context_std = torch.sqrt(context_std_squared_reduced)
-
-        # sample context variable batch x context-size
-        context_dist = torch.distributions.normal.Normal(context_mean, context_std)
-        prior_dist = torch.distributions.Normal(torch.zeros_like(context_mean), torch.ones_like(context_std))
-
-        context = torch.normal(context_mean, context_std)
-
-        # concat context embedding to the state embedding of test trajectory batch x test-samples x dim+context-size
-        test_context_states = torch.cat([context.unsqueeze(1), test_states], dim=2)
-        b, s, d = test_context_states.size()
-        test_context_states = test_context_states.view(b * s, d)
-        test_actions = test_actions.view(b * s, -1)
-
-        # for each state in the test states calculate action
-        test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
+        context_dist, prior_dist, test_axtions, test_actions_pred = self.forward(batch)
 
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
