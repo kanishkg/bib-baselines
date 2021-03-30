@@ -161,6 +161,7 @@ class ContextImitation(pl.LightningModule):
             val_datasets.append(TransitionDataset(self.hparams.data_path, types=[t], mode='val'))
             val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=self.hparams.batch_size,
                                           num_workers=self.hparams.num_workers, pin_memory=True, shuffle=False))
+        return val_loaders
 
 
 class IRLNoDynamics(pl.LightningModule):
