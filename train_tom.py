@@ -29,6 +29,7 @@ parser = Trainer.add_argparse_args(parser)
 
 # parse args
 args = parser.parse_args()
+args.types = sorted(args.types)
 print(args)
 
 random.seed(args.seed)
@@ -37,9 +38,6 @@ torch.manual_seed(args.seed)
 
 # init model
 model = ContextImitation(args)
-
-# load train and val datasets and loaders
-
 
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
