@@ -77,10 +77,10 @@ class ContextImitation(pl.LightningModule):
 
         # for each state in the test states calculate action
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
-        return context_dist, prior_dist, test_actions, test_actions_pred
+        return context, context_dist, prior_dist, test_actions, test_actions_pred
 
     def training_step(self, batch, batch_idx):
-        context_dist, prior_dist, test_axtions, test_actions_pred = self.forward(batch)
+        context, context_dist, prior_dist, test_actions, test_actions_pred = self.forward(batch)
 
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
@@ -100,7 +100,7 @@ class ContextImitation(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
-        context_dist, prior_dist, test_axtions, test_actions_pred = self.forward(batch)
+        context, context_dist, prior_dist, test_actions, test_actions_pred = self.forward(batch)
 
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
