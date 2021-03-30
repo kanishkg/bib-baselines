@@ -95,7 +95,7 @@ class ContextImitation(pl.LightningModule):
 
         return loss
 
-    def validation_step(self, batch, batch_idx, dataloader_idx):
+    def validation_step(self, batch, batch_idx):
         dem_states, dem_actions, test_states, test_actions = batch
 
         dem_states = dem_states.float()
@@ -140,10 +140,10 @@ class ContextImitation(pl.LightningModule):
                                                                                   dim=1)
         accuracy = torch.mean(correct.float())
 
-        self.log(f'val_loss_{dataloader_idx}', loss, on_epoch=True, logger=True)
-        self.log(f'val_imitation_loss_{dataloader_idx}', imitation_loss, prog_bar=True, logger=True)
-        self.log(f'val_kl_loss_{dataloader_idx}', kl_loss, prog_bar=True, logger=True)
-        self.log(f'val_accuracy_{dataloader_idx}', accuracy, prog_bar=True, logger=True)
+        self.log(f'val_loss', loss, on_epoch=True, logger=True)
+        self.log(f'val_imitation_loss', imitation_loss, prog_bar=True, logger=True)
+        self.log(f'val_kl_loss', kl_loss, prog_bar=True, logger=True)
+        self.log(f'val_accuracy', accuracy, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
