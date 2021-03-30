@@ -95,7 +95,7 @@ class ContextImitation(pl.LightningModule):
 
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx):
         dem_states, dem_actions, test_states, test_actions = batch
 
         dem_states = dem_states.float()
