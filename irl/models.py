@@ -112,12 +112,16 @@ class ContextImitation(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
-        context, context_dist, prior_dist, test_actions, test_actions_pred = self.forward(batch)
+        context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context = self.forward(
+            batch)
 
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
         kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
-        loss = imitation_loss + self.beta * kl_loss
+        context_loss = torch.mean(
+            torch.sum(test_context_dist.log_prob(test_context) - context_dist.log_prob(test_context), dim=1), dim=0)
+
+        loss = imitation_loss + self.beta * kl_loss + self.gamma * context_loss
 
         correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
                                                                                   dim=1)
