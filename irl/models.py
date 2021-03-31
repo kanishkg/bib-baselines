@@ -80,11 +80,18 @@ class ContextImitation(pl.LightningModule):
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
 
         # calculate the test context distribution for the state and bring it closer to inferred context
-        test_states_actions_pred = torch.cat([test_states, test_actions_pred], dim=1)
-        test_context_pred_mean = self.context_enc_mean(test_states_actions_pred)
-        test_context_pred_std = self.context_enc_std(test_states_actions_pred)
-        test_context_dist = torch.distributions.normal.Normal(test_context_pred_mean, test_context_pred_std)
-        test_context = torch.normal(test_context_pred_mean, test_context_pred_std)
+        test_states_actions_pred = torch.cat([test_states, test_actions_pred.view(b, s, d)], dim=2)
+        test_context_mean_samples = self.context_enc_mean(test_states_actions_pred)
+        test_context_std_samples = self.context_enc_std(test_states_actions_pred)
+
+        # combine contexts of test samples
+        test_context_std_squared = torch.clamp(test_context_std_samples * test_context_std_samples, min=1e-7)
+        test_context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(test_context_std_squared), dim=1)
+        test_context_mean = test_context_std_squared_reduced * torch.sum(test_context_mean_samples / test_context_std_squared, dim=1)
+        test_context_std = torch.sqrt(test_context_std_squared_reduced)
+
+        test_context_dist = torch.distributions.normal.Normal(test_context_mean, test_context_std)
+        test_context = torch.normal(test_context_mean, test_context_std)
 
         return context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context
 
