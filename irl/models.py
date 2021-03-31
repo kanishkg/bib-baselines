@@ -81,7 +81,7 @@ class ContextImitation(pl.LightningModule):
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
 
         # calculate the test context distribution for the state and bring it closer to inferred context
-        test_states_actions_pred = torch.cat([test_states, test_actions_pred.view(b, s, -1)], dim=2)
+        test_states_actions_pred = torch.cat([test_states, test_actions.view(b, s, -1)], dim=2)
         test_context_mean_samples = self.context_enc_mean(test_states_actions_pred)
         test_context_std_samples = self.context_enc_std(test_states_actions_pred)
 
