@@ -55,8 +55,8 @@ class ContextImitation(pl.LightningModule):
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
 
         # embed expert trajectory to get a context embedding batch x samples x dim
-        context_mean_samples = self.context_enc_mean(dem_traj)
-        context_std_samples = self.context_enc_std(dem_traj)
+        context_mean_samples = self.context_enc_mean(dem_traj*0)
+        context_std_samples = self.context_enc_std(dem_traj*0)
 
         # combine contexts of each meta episode
 
@@ -82,8 +82,8 @@ class ContextImitation(pl.LightningModule):
 
         # calculate the test context distribution for the state and bring it closer to inferred context
         test_states_actions_pred = torch.cat([test_states, test_actions.view(b, s, -1)], dim=2)
-        test_context_mean_samples = self.context_enc_mean(test_states_actions_pred)
-        test_context_std_samples = self.context_enc_std(test_states_actions_pred)
+        test_context_mean_samples = self.context_enc_mean(test_states_actions_pred*0)
+        test_context_std_samples = self.context_enc_std(test_states_actions_pred*0)
 
         # combine contexts of test samples
         test_context_std_squared = torch.clamp(test_context_std_samples * test_context_std_samples, min=1e-7)
