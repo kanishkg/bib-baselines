@@ -107,6 +107,7 @@ class ContextImitation(pl.LightningModule):
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log('imitation_loss', imitation_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log('kl_loss', kl_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('context_loss', context_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log('accuracy', accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         return loss
@@ -127,10 +128,12 @@ class ContextImitation(pl.LightningModule):
                                                                                   dim=1)
         accuracy = torch.mean(correct.float())
 
-        self.log(f'val_loss', loss, on_epoch=True, logger=True)
-        self.log(f'val_imitation_loss', imitation_loss, prog_bar=True, logger=True)
-        self.log(f'val_kl_loss', kl_loss, prog_bar=True, logger=True)
-        self.log(f'val_accuracy', accuracy, prog_bar=True, logger=True)
+        self.log('val_loss', loss, on_epoch=True, logger=True)
+        self.log('val_imitation_loss', imitation_loss, prog_bar=True, logger=True)
+        self.log('val_kl_loss', kl_loss, prog_bar=True, logger=True)
+        self.log('val_accuracy', accuracy, prog_bar=True, logger=True)
+        self.log('val_context_loss', context_loss, prog_bar=True, logger=True)
+
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
