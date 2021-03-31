@@ -19,6 +19,7 @@ class ContextImitation(pl.LightningModule):
         parser.add_argument('--state_dim', type=int, default=128)
         parser.add_argument('--action_dim', type=int, default=9)
         parser.add_argument('--beta', type=float, default=0.01)
+        parser.add_argument('--gamma', type=float, default=0.0)
         parser.add_argument('--context_dim', nargs='+', type=int, default=32)
         return parser
 
@@ -77,16 +78,27 @@ class ContextImitation(pl.LightningModule):
 
         # for each state in the test states calculate action
         test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
-        return context, context_dist, prior_dist, test_actions, test_actions_pred
+
+        # calculate the test context distribution for the state and bring it closer to inferred context
+        test_states_actions_pred = torch.cat([test_states, test_actions_pred], dim=1)
+        test_context_pred_mean = self.context_enc_mean(test_states_actions_pred)
+        test_context_pred_std = self.context_enc_std(test_states_actions_pred)
+        test_context_dist = torch.distributions.normal.Normal(test_context_pred_mean, test_context_pred_std)
+        test_context = torch.normal(test_context_pred_mean, test_context_pred_std)
+
+        return context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context
 
     def training_step(self, batch, batch_idx):
-        context, context_dist, prior_dist, test_actions, test_actions_pred = self.forward(batch)
+        context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context = self.forward(
+            batch)
 
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
         kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
+        context_loss = torch.mean(
+            torch.sum(test_context_dist.log_prob(test_context) - context_dist.log_prob(test_context), dim=1), dim=0)
 
-        loss = imitation_loss + self.beta * kl_loss
+        loss = imitation_loss + self.beta * kl_loss + self.gamma * context_loss
 
         correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
                                                                                   dim=1)
