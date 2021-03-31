@@ -76,7 +76,7 @@ class ContextImitation(pl.LightningModule):
         context = torch.normal(context_mean, context_std)
 
         # concat context embedding to the state embedding of test trajectory
-        test_context_states = torch.cat([0*context.unsqueeze(1), test_states], dim=2)
+        test_context_states = torch.cat([0 * context.unsqueeze(1), test_states], dim=2)
         b, s, d = test_context_states.size()
         test_context_states = test_context_states.view(b * s, d)
         test_actions = test_actions.view(b * s, -1)
@@ -92,7 +92,8 @@ class ContextImitation(pl.LightningModule):
         # combine contexts of test samples
         test_context_std_squared = torch.clamp(test_context_std_samples * test_context_std_samples, min=1e-7)
         test_context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(test_context_std_squared), dim=1)
-        test_context_mean = test_context_std_squared_reduced * torch.sum(test_context_mean_samples / test_context_std_squared, dim=1)
+        test_context_mean = test_context_std_squared_reduced * torch.sum(
+            test_context_mean_samples / test_context_std_squared, dim=1)
         test_context_std = torch.sqrt(test_context_std_squared_reduced)
 
         test_context_dist = torch.distributions.normal.Normal(test_context_mean, test_context_std)
@@ -107,9 +108,7 @@ class ContextImitation(pl.LightningModule):
         # calculate policy likelihood loss for imitation
         imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
         kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
-        context_loss = torch.mean(
-            torch.sum(test_context_dist.log_prob(test_context) - context_dist.log_prob(test_context), dim=1), dim=0)
-
+        context_loss = torch.mean(torch.sum(- context_dist.log_prob(test_context), dim=1), dim=0)
         loss = imitation_loss + self.beta * kl_loss + self.gamma * context_loss
 
         correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
@@ -145,7 +144,6 @@ class ContextImitation(pl.LightningModule):
         self.log('val_kl_loss', kl_loss, prog_bar=True, logger=True)
         self.log('val_accuracy', accuracy, prog_bar=True, logger=True)
         self.log('val_context_loss', context_loss, prog_bar=True, logger=True)
-
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
