@@ -38,6 +38,8 @@ class ContextImitation(pl.LightningModule):
                                          output_size=self.context_dim)
         self.context_enc_std = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
                                         output_size=self.context_dim)
+        self.context_enc_mean.freeze()
+        self.context_enc_std.freeze()
 
         self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[64, 64],
                                output_size=self.action_dim)
@@ -55,8 +57,8 @@ class ContextImitation(pl.LightningModule):
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
 
         # embed expert trajectory to get a context embedding batch x samples x dim
-        context_mean_samples = self.context_enc_mean(dem_traj*0)
-        context_std_samples = self.context_enc_std(dem_traj*0)
+        context_mean_samples = self.context_enc_mean(dem_traj)
+        context_std_samples = self.context_enc_std(dem_traj)
 
         # combine contexts of each meta episode
 
@@ -72,7 +74,7 @@ class ContextImitation(pl.LightningModule):
         context = torch.normal(context_mean, context_std)
 
         # concat context embedding to the state embedding of test trajectory
-        test_context_states = torch.cat([context.unsqueeze(1), test_states], dim=2)
+        test_context_states = torch.cat([0*context.unsqueeze(1), test_states], dim=2)
         b, s, d = test_context_states.size()
         test_context_states = test_context_states.view(b * s, d)
         test_actions = test_actions.view(b * s, -1)
@@ -82,8 +84,8 @@ class ContextImitation(pl.LightningModule):
 
         # calculate the test context distribution for the state and bring it closer to inferred context
         test_states_actions_pred = torch.cat([test_states, test_actions.view(b, s, -1)], dim=2)
-        test_context_mean_samples = self.context_enc_mean(test_states_actions_pred*0)
-        test_context_std_samples = self.context_enc_std(test_states_actions_pred*0)
+        test_context_mean_samples = self.context_enc_mean(test_states_actions_pred)
+        test_context_std_samples = self.context_enc_std(test_states_actions_pred)
 
         # combine contexts of test samples
         test_context_std_squared = torch.clamp(test_context_std_samples * test_context_std_samples, min=1e-7)
