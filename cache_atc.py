@@ -114,7 +114,7 @@ else:
     for v, t in zip(test_loaders, args.types):
         store_dict = {}
         for b, batch in enumerate(v):
-            print(f'val {b}')
+            print(f'test {b}')
             frames, actions = batch
             frame_embeddings = model(frames)
             frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
