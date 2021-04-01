@@ -161,3 +161,57 @@ class TransitionDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.tot_trials // self.num_trials
+
+
+class TestTransitionDataset(torch.utils.data.Dataset):
+
+    def __init__(self, path, type=None, mode="train", num_trials=9):
+        self.path = path
+        self.mode = mode
+        self.num_trials = num_trials
+        self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
+        self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
+
+        # load expected and unexpected caches
+        with open(f'{self.path}_{self.mode}_{type}e.pickle', 'rb') as handle:
+            self.data_expected = pickle.load(handle)
+        with open(f'{self.path}_{self.mode}_{type}u.pickle', 'rb') as handle:
+            self.data_unexpected = pickle.load(handle)
+
+        self.tot_trials = len(self.data_expected.keys()) // 2
+
+    def get_trial(self, trials, data):
+        # retrieve state embeddings and actions from cached file
+        states = []
+        actions = []
+        trial_len = []
+        for t in trials:
+            trial_len += [(t, n) for n in range(len(data[f'{t}_s']))]
+        for t, n in trial_len:
+            states.append(data[f'{t}_s'][n, :])
+            action_id = data[f'{t}_a'][n]
+            action = np.zeros((len(ACTION_LIST)))
+            action[action_id] = 1
+            actions.append(action)
+        states = torch.tensor(np.array(states)).double()
+        actions = torch.tensor(np.array(actions)).double()
+        return states, actions
+
+    def __getitem__(self, idx):
+        # only works with batch size 1
+        ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
+        random.shuffle(ep_trials)
+
+        # retrieve complete fam trajectories
+        fam_expected_states, fam_expected_actions = self.get_trial(ep_trials[:-1], self.data_expected)
+        fam_unexpected_states, fam_unexpected_actions = self.get_trial(ep_trials[:-1], self.data_unexpected)
+
+        # retrieve complete test trajectories
+        test_expected_states, test_expected_actions = self.get_trial([ep_trials[-1]], self.data_expected)
+        test_unexpected_states, test_unexpected_actions = self.get_trial([ep_trials[-1]], self.data_unexpected)
+
+        return fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
+               fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions
+
+    def __len__(self):
+        return self.tot_trials // self.num_trials
