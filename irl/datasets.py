@@ -31,9 +31,10 @@ class CacheDataset(torch.utils.data.Dataset):
         for t in types:
             print(f'reading files of type {t} in {mode}')
             paths = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}e.mp4')]
+                     x.endswith(f'{t}.mp4')]
             jsons = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}e.json')]
+                     x.endswith(f'{t}.json')]
+
             paths = sorted(paths)
             jsons = sorted(jsons)
 
@@ -43,6 +44,9 @@ class CacheDataset(torch.utils.data.Dataset):
             elif mode == 'val':
                 self.path_list += paths[int(0.8 * len(jsons)):]
                 self.json_list += jsons[int(0.8 * len(jsons)):]
+            else:
+                self.path_list += paths
+                self.json_list += jsons
 
         self.data_tuples = []
 
