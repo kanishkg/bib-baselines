@@ -1,13 +1,13 @@
-import copy
 from argparse import ArgumentParser
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
 from atc.models import MlpModel
-from irl.datasets import TransitionDataset
+from irl.datasets import TransitionDataset, TestTransitionDataset
 
 
 class ContextImitation(pl.LightningModule):
@@ -144,6 +144,33 @@ class ContextImitation(pl.LightningModule):
         self.log('val_accuracy', accuracy, prog_bar=True, logger=True)
         self.log('val_context_loss', context_loss, prog_bar=True, logger=True)
 
+    def test_step(self, batch, batch_idx):
+        fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
+        fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions = batch
+
+        surprise_expected = []
+        for i in range(test_expected_states.size(1)):
+            _, _, _, test_actions, test_actions_pred, _, _ = self.forward(
+                [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :].unsqueeze(1),
+                 test_expected_actions[:, i, :].unsqueeze(1)])
+            imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
+            surprise_expected.append(imitation_loss.cpu().numpy())
+        mean_expected_surprise = np.mean(surprise_expected)
+
+        surprise_unexpected = []
+        for i in range(test_unexpected_states.size(1)):
+            _, _, _, test_actions, test_actions_pred, _, _ = self.forward(
+                [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :].unsqueeze(1),
+                 test_unexpected_actions[:, i, :].unsqueeze(1)])
+            imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
+            surprise_unexpected.append(imitation_loss)
+        mean_unexpected_surprise = np.mean(surprise_unexpected)
+
+        correct = mean_expected_surprise < mean_unexpected_surprise
+        self.log('test_expected_surprise', mean_expected_surprise, on_epoch=True, logger=True)
+        self.log('test_unexpected_surprise', mean_unexpected_surprise, prog_bar=True, logger=True)
+        self.log('accuracy', correct, prog_bar=True, logger=True)
+
     def configure_optimizers(self):
         policy_optim = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
         context_optim = torch.optim.Adam(
@@ -164,6 +191,15 @@ class ContextImitation(pl.LightningModule):
             val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=self.hparams.batch_size,
                                           num_workers=self.hparams.num_workers, pin_memory=True, shuffle=False))
         return val_loaders
+
+    def test_dataloader(self):
+        test_datasets = []
+        test_dataloaders = []
+        for t in self.hparams.types:
+            test_datasets.append(TestTransitionDataset(self.hparams.data_path, type=t))
+            test_dataloaders.append(
+                DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
+        return test_dataloaders
 
 
 class IRLNoDynamics(pl.LightningModule):

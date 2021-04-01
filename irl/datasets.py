@@ -165,17 +165,16 @@ class TransitionDataset(torch.utils.data.Dataset):
 
 class TestTransitionDataset(torch.utils.data.Dataset):
 
-    def __init__(self, path, type=None, mode="train", num_trials=9):
+    def __init__(self, path, type=None, num_trials=9):
         self.path = path
-        self.mode = mode
         self.num_trials = num_trials
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
 
         # load expected and unexpected caches
-        with open(f'{self.path}_{self.mode}_{type}e.pickle', 'rb') as handle:
+        with open(f'{self.path}_test_{type}e.pickle', 'rb') as handle:
             self.data_expected = pickle.load(handle)
-        with open(f'{self.path}_{self.mode}_{type}u.pickle', 'rb') as handle:
+        with open(f'{self.path}_test_{type}u.pickle', 'rb') as handle:
             self.data_unexpected = pickle.load(handle)
 
         self.tot_trials = len(self.data_expected.keys()) // 2
