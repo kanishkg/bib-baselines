@@ -98,7 +98,7 @@ if not args.test:
             pickle.dump(store_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 else:
-     # cache test dataset
+    # cache test dataset
     print("loading val dataset")
     test_datasets = []
     test_loaders = []
@@ -106,7 +106,7 @@ else:
     print(args.types)
     for t in args.types:
         test_datasets.append(CacheDataset(args.data_path, types=[t], size=(args.size, args.size),
-                                         mode='test', process_data=args.cache))
+                                          mode='test', process_data=args.cache))
 
         test_loaders.append(
             DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
