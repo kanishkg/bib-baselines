@@ -146,8 +146,8 @@ class ContextImitation(pl.LightningModule):
 
     def configure_optimizers(self):
         policy_optim = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
-        context_optim = torch.optim.Adam(self.context_enc_mean.parameters() + self.context_enc_std.parameters(),
-                                         lr=self.lr)
+        context_optim = torch.optim.Adam(
+            list(self.context_enc_mean.parameters()) + list(self.context_enc_std.parameters()), lr=self.lr)
         return [policy_optim, context_optim]
 
     def train_dataloader(self):
