@@ -18,6 +18,7 @@ parser.add_argument('--seed', type=int, default=4)
 parser.add_argument('--data_path', type=str, default='./')
 parser.add_argument('--types', nargs='+', type=str, default=['co', 'pr'],
                     help='types of tasks used for training / testing')
+parser.add_argument('--train', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--batch_size', type=int, default=256)
 
@@ -41,4 +42,8 @@ model = ContextImitation(args)
 
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
-trainer.fit(model)
+
+if args.train:
+    trainer.fit(model)
+else:
+    trainer.test(model)
