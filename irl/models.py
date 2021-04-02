@@ -149,26 +149,37 @@ class ContextImitation(pl.LightningModule):
         fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions = batch
 
         surprise_expected = []
+        max_surprise_expected = 0
         for i in range(test_expected_states.size(1)):
             _, _, _, test_actions, test_actions_pred, _, _ = self.forward(
                 [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :].unsqueeze(1),
                  test_expected_actions[:, i, :].unsqueeze(1)])
             imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
-            surprise_expected.append(imitation_loss.cpu().numpy())
+            surprise = imitation_loss.cpu().numpy()
+            surprise_expected.append(surprise)
+            if max_surprise_expected < surprise:
+                max_surprise_expected = surprise
         mean_expected_surprise = np.mean(surprise_expected)
 
         surprise_unexpected = []
+        max_surprise_unexpected = 0
         for i in range(test_unexpected_states.size(1)):
             _, _, _, test_actions, test_actions_pred, _, _ = self.forward(
                 [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :].unsqueeze(1),
                  test_unexpected_actions[:, i, :].unsqueeze(1)])
             imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
-            surprise_unexpected.append(imitation_loss.cpu().numpy())
+            surprise = imitation_loss.cpu().numpy()
+            surprise_unexpected.append(surprise)
+            if max_surprise_unexpected < surprise:
+                max_surprise_unexpected = surprise
+
         mean_unexpected_surprise = np.mean(surprise_unexpected)
 
-        correct = mean_expected_surprise < mean_unexpected_surprise
-        self.log('test_expected_surprise', mean_expected_surprise, on_epoch=True, logger=True)
-        self.log('test_unexpected_surprise', mean_unexpected_surprise, prog_bar=True, logger=True)
+        # correct = mean_expected_surprise < mean_unexpected_surprise
+        correct = max_surprise_expected < max_surprise_unexpected
+
+        self.log('test_expected_surprise', max_surprise_expected, on_epoch=True, logger=True)
+        self.log('test_unexpected_surprise', max_surprise_unexpected, prog_bar=True, logger=True)
         self.log('accuracy', correct, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
