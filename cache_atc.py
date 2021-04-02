@@ -74,7 +74,7 @@ if not args.test:
     for b, batch in enumerate(train_loader):
         print(f'train {b}/ {len(train_dataset)}')
         frames, actions = batch
-        frame_embeddings = model(frames)
+        frame_embeddings = model(frames.cuda())
         frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
         actions = actions[0, :].cpu().numpy()
         store_dict[f'{b}_s'] = frame_embeddings
@@ -90,7 +90,7 @@ if not args.test:
         for b, batch in enumerate(v):
             print(f'val {b}')
             frames, actions = batch
-            frame_embeddings = model(frames)
+            frame_embeddings = model(frames.cuda())
             frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
             actions = actions[0, :].cpu().numpy()
             store_dict[f'{b}_s'] = frame_embeddings
@@ -117,7 +117,7 @@ else:
         for b, batch in enumerate(v):
             print(f'test {b}')
             frames, actions = batch
-            frame_embeddings = model(frames)
+            frame_embeddings = model(frames.cuda())
             frame_embeddings = frame_embeddings[0, :, :].cpu().numpy()
             actions = actions[0, :].cpu().numpy()
             store_dict[f'{b}_s'] = frame_embeddings
