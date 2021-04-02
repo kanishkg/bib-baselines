@@ -184,6 +184,8 @@ class ContextImitation(pl.LightningModule):
         correct = mean_expected_surprise < mean_unexpected_surprise
         self.log('test_expected_surprise', mean_expected_surprise, on_epoch=True, logger=True)
         self.log('test_unexpected_surprise', mean_unexpected_surprise, prog_bar=True, logger=True)
+        self.log('test_expected_accuracy', accuracy_expected, prog_bar=True, logger=True)
+        self.log('test_unexpected_accuracy', accuracy_unexpected, prog_bar=True, logger=True)
         self.log('accuracy', correct, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
