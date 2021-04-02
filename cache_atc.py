@@ -32,7 +32,7 @@ parser.add_argument('--hparams', type=str, default='./')
 parser.add_argument('--cache_file', type=str, default='./')
 
 # add all the available trainer options to argparse
-parser = Trainer.add_argparse_args(parser)
+# parser = Trainer.add_argparse_args(parser)
 
 # parse args
 args = parser.parse_args()
@@ -44,6 +44,7 @@ torch.manual_seed(args.seed)
 
 # load model with weights and hparams in eval mode
 model = ATCEncoder.load_from_checkpoint(args.ckpt, hparams_file=args.hparams)
+model.cuda()
 model.eval()
 model.freeze()
 
