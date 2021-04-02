@@ -67,7 +67,7 @@ class CacheDataset(torch.utils.data.Dataset):
                         f0x, f0y = state[e][f]['agent'][0]
                         f1x, f1y = state[e][f + 1]['agent'][0]
                         dx = int((f1x - f0x) / 2)
-                        dy = int((f1x - f0x) / 2)
+                        dy = int((f1y - f0y) / 2)
                         action = ACTION_LIST.index([dx, dy])
                         self.data_tuples[-1].append((v, past_len + f, action))
                     print(len(self.data_tuples[-1]))
