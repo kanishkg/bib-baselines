@@ -33,7 +33,7 @@ class CacheDataset(torch.utils.data.Dataset):
             paths = [os.path.join(self.path, x) for x in os.listdir(self.path) if
                      x.endswith(f'{t}.mp4')]
             jsons = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}.json')]
+                     x.endswith(f'{t}.json') and 'index' not in x]
 
             paths = sorted(paths)
             jsons = sorted(jsons)
