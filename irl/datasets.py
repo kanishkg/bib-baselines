@@ -52,7 +52,7 @@ class CacheDataset(torch.utils.data.Dataset):
 
         if process_data:
 
-            print('processing files')
+            print(f'processing files {len(self.json_list)}')
             for j, v in zip(self.json_list, self.path_list):
                 print(j)
                 with open(j, 'r') as f:
