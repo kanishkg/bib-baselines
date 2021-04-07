@@ -97,7 +97,7 @@ class ContextImitation(pl.LightningModule):
 
         return context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx):
         context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context = self.forward(
             batch)
 
@@ -117,10 +117,10 @@ class ContextImitation(pl.LightningModule):
         self.log('context_loss', context_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log('accuracy', accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-        if optimizer_idx == 0:
-            return imitation_loss
-        elif optimizer_idx == 1:
-            return context_loss + self.beta * kl_loss
+        # if optimizer_idx == 0:
+        return imitation_loss
+        # elif optimizer_idx == 1:
+        #     return context_loss + self.beta * kl_loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
         context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context = self.forward(
@@ -190,9 +190,10 @@ class ContextImitation(pl.LightningModule):
 
     def configure_optimizers(self):
         policy_optim = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
-        context_optim = torch.optim.Adam(
-            list(self.context_enc_mean.parameters()) + list(self.context_enc_std.parameters()), lr=self.lr)
-        return [policy_optim, context_optim]
+        # context_optim = torch.optim.Adam(
+        #     list(self.context_enc_mean.parameters()) + list(self.context_enc_std.parameters()), lr=self.lr)
+        # return [policy_optim, context_optim]
+        return policy_optim
 
     def train_dataloader(self):
         train_dataset = TransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train')
