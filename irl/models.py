@@ -161,7 +161,7 @@ class ContextImitation(pl.LightningModule):
             imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
             surprise_expected.append(imitation_loss.cpu().numpy())
 
-        mean_expected_surprise = np.max(surprise_expected)
+        mean_expected_surprise = np.mean(surprise_expected)
         accuracy_expected = np.mean(accuracy_expected)
 
         surprise_unexpected = []
@@ -178,7 +178,7 @@ class ContextImitation(pl.LightningModule):
             imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
             surprise_unexpected.append(imitation_loss.cpu().numpy())
 
-        mean_unexpected_surprise = np.max(surprise_unexpected)
+        mean_unexpected_surprise = np.mean(surprise_unexpected)
         accuracy_unexpected = np.mean(accuracy_unexpected)
 
         correct = mean_expected_surprise < mean_unexpected_surprise
