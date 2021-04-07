@@ -120,7 +120,7 @@ class ContextImitation(pl.LightningModule):
         if optimizer_idx == 0:
             return imitation_loss
         elif optimizer_idx == 1:
-            return imitation_loss + self.beta * kl_loss
+            return context_loss + self.beta * kl_loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
         context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context = self.forward(
