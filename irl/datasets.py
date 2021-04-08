@@ -66,9 +66,10 @@ class CacheDataset(torch.utils.data.Dataset):
                         # find action taken; this calculation is approximate
                         f0x, f0y = state[e][f]['agent'][0]
                         f1x, f1y = state[e][f + 1]['agent'][0]
-                        dx = int((f1x - f0x) / 2)
-                        dy = int((f1y - f0y) / 2)
-                        action = ACTION_LIST.index([dx, dy])
+                        dx = (f1x - f0x) / 2.
+                        dy = (f1y - f0y) / 2.
+                        action = [dx, dy]
+                        # action = ACTION_LIST.index([dx, dy])
                         self.data_tuples[-1].append((v, past_len + f, action))
                     print(len(self.data_tuples[-1]))
                     assert len(self.data_tuples[-1]) > 0
@@ -140,7 +141,8 @@ class TransitionDataset(torch.utils.data.Dataset):
         for t in trials:
             trial_len += [(t, n) for n in range(len(self.data[f'{t}_s']))]
         random.shuffle(trial_len)
-        assert len(trial_len) >= num_transitions
+        if len(trial_len) <= num_transitions:
+            return None, None, False
         for t, n in trial_len[:num_transitions]:
             states.append(self.data[f'{t}_s'][n, :])
             action_id = self.data[f'{t}_a'][n]
@@ -149,14 +151,17 @@ class TransitionDataset(torch.utils.data.Dataset):
             actions.append(action)
         states = torch.tensor(np.array(states)).double()
         actions = torch.tensor(np.array(actions)).double()
-        return states, actions
+        return states, actions, True
 
     def __getitem__(self, idx):
         # retrieve 2 expert trajectories
-        ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
-        random.shuffle(ep_trials)
-        dem_states, dem_actions = self.get_trial(ep_trials[:-1], self.num_context)
-        test_states, test_actions = self.get_trial([ep_trials[-1]], self.num_test)
+        dem = False
+        test = False
+        while not dem and not test:
+            ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
+            random.shuffle(ep_trials)
+            dem_states, dem_actions, dem = self.get_trial(ep_trials[:-1], self.num_context)
+            test_states, test_actions, test = self.get_trial([ep_trials[-1]], self.num_test)
         return dem_states, dem_actions, test_states, test_actions
 
     def __len__(self):

@@ -199,7 +199,7 @@ class ContextImitation(pl.LightningModule):
         # context_optim = torch.optim.Adam(
         #     list(self.context_enc_mean.parameters()) + list(self.context_enc_std.parameters()), lr=self.lr)
         # return [policy_optim, context_optim]
-        return policy_optim
+        return optim
 
     def train_dataloader(self):
         train_dataset = TransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train')
