@@ -39,6 +39,11 @@ class ContextImitation(pl.LightningModule):
         self.context_enc_std = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
                                         output_size=self.context_dim)
 
+        for param in self.context_enc_std.parameters():
+            param.requires_grad = False
+        for param in self.context_enc_mean.parameters():
+            param.requires_grad = False
+
         self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[64, 64],
                                output_size=self.action_dim)
 
@@ -189,7 +194,8 @@ class ContextImitation(pl.LightningModule):
         self.log('accuracy', correct, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        policy_optim = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
+        optim = torch.optim.Adam(self.parameters(), lr=self.lr)
+        # policy_optim = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
         # context_optim = torch.optim.Adam(
         #     list(self.context_enc_mean.parameters()) + list(self.context_enc_std.parameters()), lr=self.lr)
         # return [policy_optim, context_optim]
