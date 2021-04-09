@@ -161,8 +161,6 @@ class ContextImitation(pl.LightningModule):
             test_actions, test_actions_pred = self.forward(
                 [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :].unsqueeze(1),
                  test_expected_actions[:, i, :].unsqueeze(1)])
-            correct_actions = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
-                                                                                              dim=1)
             loss = F.mse_loss(test_actions, test_actions_pred)
             surprise_expected.append(loss.cpu().numpy())
 
@@ -172,16 +170,12 @@ class ContextImitation(pl.LightningModule):
         surprise_unexpected = []
         accuracy_unexpected = []
         for i in range(test_unexpected_states.size(1)):
-            _, _, _, test_actions, test_actions_pred, _, _ = self.forward(
+            test_actions, test_actions_pred = self.forward(
                 [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :].unsqueeze(1),
                  test_unexpected_actions[:, i, :].unsqueeze(1)])
 
-            correct_actions = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
-                                                                                              dim=1)
-            accuracy_actions = torch.mean(correct_actions.float())
-            accuracy_unexpected.append(accuracy_actions.cpu().numpy())
-            imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
-            surprise_unexpected.append(imitation_loss.cpu().numpy())
+            loss = F.mse_loss(test_actions, test_actions_pred)
+            surprise_unexpected.append(loss.cpu().numpy())
 
         mean_unexpected_surprise = np.mean(surprise_unexpected)
         max_unexpected_surprise = np.max(surprise_unexpected)
