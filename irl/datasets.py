@@ -156,7 +156,7 @@ class TransitionDataset(torch.utils.data.Dataset):
         # retrieve 2 expert trajectories
         dem = False
         test = False
-        while not dem and not test:
+        while not dem or not test:
             ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
             random.shuffle(ep_trials)
             dem_states, dem_actions, dem = self.get_trial(ep_trials[:-1], self.num_context)
