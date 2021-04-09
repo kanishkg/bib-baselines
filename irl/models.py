@@ -84,7 +84,7 @@ class ContextImitation(pl.LightningModule):
         test_actions = test_actions.view(b * s, -1)
 
         # for each state in the test states calculate action
-        test_actions_pred = F.sigmoid(self.policy(test_context_states))
+        test_actions_pred = F.tanh(self.policy(test_context_states))
 
         # calculate the test context distribution for the state and bring it closer to inferred context
         # test_states_actions = torch.cat([test_states, test_actions.view(b, s, -1)], dim=2)
