@@ -156,7 +156,6 @@ class ContextImitation(pl.LightningModule):
         fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions = batch
 
         surprise_expected = []
-        accuracy_expected = []
         for i in range(test_expected_states.size(1)):
             test_actions, test_actions_pred = self.forward(
                 [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :].unsqueeze(1),
@@ -168,7 +167,6 @@ class ContextImitation(pl.LightningModule):
         max_expected_surprise = np.max(surprise_expected)
 
         surprise_unexpected = []
-        accuracy_unexpected = []
         for i in range(test_unexpected_states.size(1)):
             test_actions, test_actions_pred = self.forward(
                 [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :].unsqueeze(1),
