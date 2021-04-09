@@ -158,18 +158,16 @@ class ContextImitation(pl.LightningModule):
         surprise_expected = []
         accuracy_expected = []
         for i in range(test_expected_states.size(1)):
-            _, _, _, test_actions, test_actions_pred, _, _ = self.forward(
+            test_actions, test_actions_pred = self.forward(
                 [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :].unsqueeze(1),
                  test_expected_actions[:, i, :].unsqueeze(1)])
             correct_actions = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
-                                                                                      dim=1)
-            accuracy_actions = torch.mean(correct_actions.float())
-            accuracy_expected.append(accuracy_actions.cpu().numpy())
-            imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
-            surprise_expected.append(imitation_loss.cpu().numpy())
+                                                                                              dim=1)
+            loss = F.mse_loss(test_actions, test_actions_pred)
+            surprise_expected.append(loss.cpu().numpy())
 
         mean_expected_surprise = np.mean(surprise_expected)
-        accuracy_expected = np.mean(accuracy_expected)
+        max_expected_surprise = np.max(surprise_expected)
 
         surprise_unexpected = []
         accuracy_unexpected = []
@@ -186,14 +184,19 @@ class ContextImitation(pl.LightningModule):
             surprise_unexpected.append(imitation_loss.cpu().numpy())
 
         mean_unexpected_surprise = np.mean(surprise_unexpected)
-        accuracy_unexpected = np.mean(accuracy_unexpected)
+        max_unexpected_surprise = np.max(surprise_unexpected)
 
-        correct = mean_expected_surprise < mean_unexpected_surprise
+        correct_mean = mean_expected_surprise < mean_unexpected_surprise + 0.5 * (
+                    mean_expected_surprise == mean_unexpected_surprise)
+        correct_max = max_expected_surprise < max_unexpected_surprise + 0.5 * (
+                    max_expected_surprise == max_unexpected_surprise)
         self.log('test_expected_surprise', mean_expected_surprise, on_epoch=True, logger=True)
         self.log('test_unexpected_surprise', mean_unexpected_surprise, prog_bar=True, logger=True)
-        self.log('test_expected_accuracy', accuracy_expected, prog_bar=True, logger=True)
-        self.log('test_unexpected_accuracy', accuracy_unexpected, prog_bar=True, logger=True)
-        self.log('accuracy', correct, prog_bar=True, logger=True)
+        self.log('test_expected_surprisem', max_expected_surprise, on_epoch=True, logger=True)
+        self.log('test_unexpected_surprisem', max_unexpected_surprise, prog_bar=True, logger=True)
+        self.log('accuracy_mean', correct_mean, prog_bar=True, logger=True)
+        self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
+
 
     def configure_optimizers(self):
         optim = torch.optim.Adam(self.parameters(), lr=self.lr)
