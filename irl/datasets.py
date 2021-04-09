@@ -145,9 +145,8 @@ class TransitionDataset(torch.utils.data.Dataset):
             return None, None, False
         for t, n in trial_len[:num_transitions]:
             states.append(self.data[f'{t}_s'][n, :])
-            action_id = self.data[f'{t}_a'][n]
-            action = np.zeros((len(ACTION_LIST)))
-            action[action_id] = 1
+            actions_xy = self.data[f'{t}_a'][n]
+            action = np.array(actions_xy)
             actions.append(action)
         states = torch.tensor(np.array(states)).double()
         actions = torch.tensor(np.array(actions)).double()

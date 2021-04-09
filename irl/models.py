@@ -17,7 +17,7 @@ class ContextImitation(pl.LightningModule):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument('--lr', type=float, default=1e-4)
         parser.add_argument('--state_dim', type=int, default=128)
-        parser.add_argument('--action_dim', type=int, default=9)
+        parser.add_argument('--action_dim', type=int, default=2)
         parser.add_argument('--beta', type=float, default=0.01)
         parser.add_argument('--gamma', type=float, default=0.0)
         parser.add_argument('--context_dim', nargs='+', type=int, default=32)
@@ -36,13 +36,13 @@ class ContextImitation(pl.LightningModule):
 
         self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
                                          output_size=self.context_dim)
-        self.context_enc_std = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
-                                        output_size=self.context_dim)
+        # self.context_enc_std = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
+        #                                 output_size=self.context_dim)
 
-        for param in self.context_enc_std.parameters():
-            param.requires_grad = False
-        for param in self.context_enc_mean.parameters():
-            param.requires_grad = False
+        # for param in self.context_enc_std.parameters():
+        #     param.requires_grad = False
+        # for param in self.context_enc_mean.parameters():
+        #     param.requires_grad = False
 
         self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[64, 64],
                                output_size=self.action_dim)
@@ -61,20 +61,21 @@ class ContextImitation(pl.LightningModule):
 
         # embed expert trajectory to get a context embedding batch x samples x dim
         context_mean_samples = self.context_enc_mean(dem_traj)
-        context_std_samples = self.context_enc_std(dem_traj)
+        # context_std_samples = self.context_enc_std(dem_traj)
 
         # combine contexts of each meta episode
 
-        context_std_squared = torch.clamp(context_std_samples * context_std_samples, min=1e-7)
-        context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
-        context_mean = context_std_squared_reduced * torch.sum(context_mean_samples / context_std_squared, dim=1)
-        context_std = torch.sqrt(context_std_squared_reduced)
+        # context_std_squared = torch.clamp(context_std_samples * context_std_samples, min=1e-7)
+        # context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
+        # context_mean = context_std_squared_reduced * torch.sum(context_mean_samples / context_std_squared, dim=1)
+        # context_std = torch.sqrt(context_std_squared_reduced)
 
         # sample context variable
-        context_dist = torch.distributions.normal.Normal(context_mean, context_std)
-        prior_dist = torch.distributions.Normal(torch.zeros_like(context_mean), torch.ones_like(context_std))
+        # context_dist = torch.distributions.normal.Normal(context_mean, context_std)
+        # prior_dist = torch.distributions.Normal(torch.zeros_like(context_mean), torch.ones_like(context_std))
 
-        context = torch.normal(context_mean, context_std)
+        # context = torch.normal(context_mean, context_std)
+        context = torch.mean(context_mean_samples, dim=1)
 
         # concat context embedding to the state embedding of test trajectory
         test_context_states = torch.cat([context.unsqueeze(1), test_states], dim=2)
@@ -83,7 +84,7 @@ class ContextImitation(pl.LightningModule):
         test_actions = test_actions.view(b * s, -1)
 
         # for each state in the test states calculate action
-        test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
+        test_actions_pred = F.sigmoid(self.policy(test_context_states))
 
         # calculate the test context distribution for the state and bring it closer to inferred context
         test_states_actions = torch.cat([test_states, test_actions.view(b, s, -1)], dim=2)
@@ -91,63 +92,64 @@ class ContextImitation(pl.LightningModule):
         test_context_std_samples = self.context_enc_std(test_states_actions)
 
         # combine contexts of test samples
-        test_context_std_squared = torch.clamp(test_context_std_samples * test_context_std_samples, min=1e-7)
-        test_context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(test_context_std_squared), dim=1)
-        test_context_mean = test_context_std_squared_reduced * torch.sum(
-            test_context_mean_samples / test_context_std_squared, dim=1)
-        test_context_std = torch.sqrt(test_context_std_squared_reduced)
+        # test_context_std_squared = torch.clamp(test_context_std_samples * test_context_std_samples, min=1e-7)
+        # test_context_std_squared_reduced = 1. / torch.sum(torch.reciprocal(test_context_std_squared), dim=1)
+        # test_context_mean = test_context_std_squared_reduced * torch.sum(
+        #     test_context_mean_samples / test_context_std_squared, dim=1)
+        # test_context_std = torch.sqrt(test_context_std_squared_reduced)
+        #
+        # test_context_dist = torch.distributions.normal.Normal(test_context_mean, test_context_std)
+        # test_context = torch.normal(test_context_mean, test_context_std)
+        # test_context = torch.mean()
 
-        test_context_dist = torch.distributions.normal.Normal(test_context_mean, test_context_std)
-        test_context = torch.normal(test_context_mean, test_context_std)
-
-        return context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context
+        return test_actions, test_actions_pred
 
     def training_step(self, batch, batch_idx):
-        context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context = self.forward(
-            batch)
-
-        # calculate policy likelihood loss for imitation
-        imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
-        kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
-        context_loss = torch.mean(torch.sum(- context_dist.log_prob(test_context), dim=1), dim=0)
-        loss = imitation_loss + self.beta * kl_loss + self.gamma * context_loss
-
-        correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
-                                                                                  dim=1)
-        accuracy = torch.mean(correct.float())
+        test_actions, test_actions_pred = self.forward(batch)
+        loss = F.mse_loss(test_actions, test_actions_pred)
 
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('imitation_loss', imitation_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('kl_loss', kl_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('context_loss', context_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('accuracy', accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
+        return loss
+        # calculate policy likelihood loss for imitation
+        # imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
+        # kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
+        # context_loss = torch.mean(torch.sum(- context_dist.log_prob(test_context), dim=1), dim=0)
+        # loss = imitation_loss + self.beta * kl_loss + self.gamma * context_loss
+        #
+        # correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
+        #                                                                           dim=1)
+        # accuracy = torch.mean(correct.float())
+
+        # self.log('imitation_loss', imitation_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        # self.log('kl_loss', kl_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        # self.log('context_loss', context_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        # self.log('accuracy', accuracy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         # if optimizer_idx == 0:
-        return imitation_loss
         # elif optimizer_idx == 1:
         #     return context_loss + self.beta * kl_loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
-        context, context_dist, prior_dist, test_actions, test_actions_pred, test_context_dist, test_context = self.forward(
-            batch)
-
+        test_actions, test_actions_pred = self.forward(batch)
+        loss = F.mse_loss(test_actions, test_actions_pred)
         # calculate policy likelihood loss for imitation
-        imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
-        kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
-        context_loss = torch.mean(
-            torch.sum(test_context_dist.log_prob(test_context) - context_dist.log_prob(test_context), dim=1), dim=0)
-
-        loss = imitation_loss + self.beta * kl_loss + self.gamma * context_loss
-
-        correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
-                                                                                  dim=1)
-        accuracy = torch.mean(correct.float())
+        # imitation_loss = torch.mean(torch.sum(- torch.log(test_actions_pred + 1e-8) * test_actions, dim=1), dim=0)
+        # kl_loss = torch.mean(torch.sum(context_dist.log_prob(context) - prior_dist.log_prob(context), dim=1), dim=0)
+        # context_loss = torch.mean(
+        #     torch.sum(test_context_dist.log_prob(test_context) - context_dist.log_prob(test_context), dim=1), dim=0)
+        #
+        # loss = imitation_loss + self.beta * kl_loss + self.gamma * context_loss
+        #
+        # correct = torch.argmax(test_actions_pred.detach(), dim=1) == torch.argmax(test_actions.detach(),
+        #                                                                           dim=1)
+        # accuracy = torch.mean(correct.float())
 
         self.log('val_loss', loss, on_epoch=True, logger=True)
-        self.log('val_imitation_loss', imitation_loss, prog_bar=True, logger=True)
-        self.log('val_kl_loss', kl_loss, prog_bar=True, logger=True)
-        self.log('val_accuracy', accuracy, prog_bar=True, logger=True)
-        self.log('val_context_loss', context_loss, prog_bar=True, logger=True)
+        # self.log('val_imitation_loss', imitation_loss, prog_bar=True, logger=True)
+        # self.log('val_kl_loss', kl_loss, prog_bar=True, logger=True)
+        # self.log('val_accuracy', accuracy, prog_bar=True, logger=True)
+        # self.log('val_context_loss', context_loss, prog_bar=True, logger=True)
 
     def test_step(self, batch, batch_idx):
         fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
