@@ -130,7 +130,7 @@ class ContextImitation(pl.LightningModule):
         # elif optimizer_idx == 1:
         #     return context_loss + self.beta * kl_loss
 
-    def validation_step(self, batch, batch_idx, dataloader_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
         test_actions, test_actions_pred = self.forward(batch)
         loss = F.mse_loss(test_actions, test_actions_pred)
         # calculate policy likelihood loss for imitation
