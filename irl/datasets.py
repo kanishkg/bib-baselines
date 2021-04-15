@@ -192,13 +192,8 @@ class TestTransitionDataset(torch.utils.data.Dataset):
             trial_len += [(t, n) for n in range(len(data[f'{t}_s']))]
         for t, n in trial_len:
             states.append(data[f'{t}_s'][n, :])
-            action_id = data[f'{t}_a'][n]
-
             actions_xy = data[f'{t}_a'][n]
             action = np.array(actions_xy)
-            actions.append(action)
-            action = np.zeros((len(ACTION_LIST)))
-            action[action_id] = 1
             actions.append(action)
         states = torch.tensor(np.array(states)).double()
         actions = torch.tensor(np.array(actions)).double()
