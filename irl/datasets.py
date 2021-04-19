@@ -147,7 +147,7 @@ class TransitionDataset(torch.utils.data.Dataset):
         for t, n in trial_len[:num_transitions]:
             states.append(self.data[f'{t}_s'][n, :])
             actions_xy = self.data[f'{t}_a'][n:n+self.action_range, :]
-            actions_xy = np.sum(actions_xy, axis=0)
+            actions_xy = np.mean(actions_xy, axis=0)
             action = np.array(actions_xy)
             actions.append(action)
         states = torch.tensor(np.array(states)).double()
