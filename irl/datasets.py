@@ -119,13 +119,14 @@ class CacheDataset(torch.utils.data.Dataset):
 
 class TransitionDataset(torch.utils.data.Dataset):
 
-    def __init__(self, path, types=None, mode="train", num_context=30, num_test=1, num_trials=9):
+    def __init__(self, path, types=None, mode="train", num_context=30, num_test=1, num_trials=9, action_range=10):
         self.path = path
         self.types = types
         self.mode = mode
         self.num_trials = num_trials
         self.num_context = num_context
         self.num_test = num_test
+        self.action_range = action_range
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
         types_str = '_'.join(self.types)
@@ -145,7 +146,8 @@ class TransitionDataset(torch.utils.data.Dataset):
             return None, None, False
         for t, n in trial_len[:num_transitions]:
             states.append(self.data[f'{t}_s'][n, :])
-            actions_xy = self.data[f'{t}_a'][n]
+            actions_xy = self.data[f'{t}_a'][n:n+self.action_range, :]
+            actions_xy = np.sum(actions_xy, axis=0)
             action = np.array(actions_xy)
             actions.append(action)
         states = torch.tensor(np.array(states)).double()
