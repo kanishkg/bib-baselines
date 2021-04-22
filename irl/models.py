@@ -34,7 +34,7 @@ class ContextImitation(pl.LightningModule):
         self.beta = self.hparams.beta
         self.gamma = self.hparams.gamma
 
-        self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
+        self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[256, 128, 256],
                                          output_size=self.context_dim)
         # self.context_enc_std = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
         #                                 output_size=self.context_dim)
