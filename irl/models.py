@@ -44,7 +44,7 @@ class ContextImitation(pl.LightningModule):
         # for param in self.context_enc_mean.parameters():
         #     param.requires_grad = False
 
-        self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[64, 64],
+        self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
                                output_size=self.action_dim)
 
         self.past_samples = []
