@@ -41,8 +41,8 @@ class ContextImitation(pl.LightningModule):
 
         # for param in self.context_enc_std.parameters():
         #     param.requires_grad = False
-        # for param in self.context_enc_mean.parameters():
-        #     param.requires_grad = False
+        for param in self.context_enc_mean.parameters():
+            param.requires_grad = False
 
         self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
                                output_size=self.action_dim)
@@ -75,7 +75,7 @@ class ContextImitation(pl.LightningModule):
         # prior_dist = torch.distributions.Normal(torch.zeros_like(context_mean), torch.ones_like(context_std))
 
         # context = torch.normal(context_mean, context_std)
-        context = torch.mean(context_mean_samples, dim=1)
+        context = torch.mean(context_mean_samples*0, dim=1)
 
         # concat context embedding to the state embedding of test trajectory
         test_context_states = torch.cat([context.unsqueeze(1), test_states], dim=2)
