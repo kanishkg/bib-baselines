@@ -171,9 +171,10 @@ class TransitionDataset(torch.utils.data.Dataset):
 
 class TestTransitionDataset(torch.utils.data.Dataset):
 
-    def __init__(self, path, type=None, num_trials=9):
+    def __init__(self, path, type=None, num_trials=9, action_range=10):
         self.path = path
         self.num_trials = num_trials
+        self.action_range = action_range
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
 
@@ -194,7 +195,8 @@ class TestTransitionDataset(torch.utils.data.Dataset):
             trial_len += [(t, n) for n in range(len(data[f'{t}_s']))]
         for t, n in trial_len:
             states.append(data[f'{t}_s'][n, :])
-            actions_xy = data[f'{t}_a'][n]
+            actions_xy = self.data[f'{t}_a'][n:n+self.action_range, :]
+            actions_xy = np.mean(actions_xy, axis=0)
             action = np.array(actions_xy)
             actions.append(action)
         states = torch.tensor(np.array(states)).double()
