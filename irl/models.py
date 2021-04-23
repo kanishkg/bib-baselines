@@ -40,7 +40,7 @@ class ContextImitation(pl.LightningModule):
         parser.add_argument('--beta', type=float, default=0.01)
         parser.add_argument('--gamma', type=float, default=0.0)
         parser.add_argument('--context_dim', nargs='+', type=int, default=32)
-        # parser.add_argument('--dropout', type=float, default=0.)
+        parser.add_argument('--dropout', type=float, default=0.2)
 
         return parser
 
@@ -54,12 +54,12 @@ class ContextImitation(pl.LightningModule):
         self.context_dim = self.hparams.context_dim
         self.beta = self.hparams.beta
         self.gamma = self.hparams.gamma
-        # self.dropout = self.hparams.dropout
+        self.dropout = self.hparams.dropout
 
-        self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
-                                         output_size=self.context_dim)
-        # self.context_enc_mean = TransformerModel(self.state_dim + self.action_dim, nout=self.context_dim,
-        #                                          dropout=self.dropout)
+        # self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
+        #                                  output_size=self.context_dim)
+        self.context_enc_mean = TransformerModel(self.state_dim + self.action_dim, nout=self.context_dim,
+                                                 dropout=self.dropout)
 
         # self.context_enc_std = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
         #                                 output_size=self.context_dim)
@@ -70,7 +70,7 @@ class ContextImitation(pl.LightningModule):
         #     param.requires_grad = False
 
         self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
-                               output_size=self.action_dim)
+                               output_size=self.action_dim, dropout=self.dropout)
 
         self.past_samples = []
 
