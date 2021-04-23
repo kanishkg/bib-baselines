@@ -134,15 +134,15 @@ class TransitionDataset(torch.utils.data.Dataset):
             self.data = pickle.load(handle)
         self.tot_trials = len(self.data.keys()) // 2
 
-    def get_trial(self, trials, num_transitions):
+    def get_trial(self, trials, num_transitions, step=1):
         # retrieve state embeddings and actions from cached file
         states = []
         actions = []
         trial_len = []
         for t in trials:
-            trial_len += [(t, n) for n in range(len(self.data[f'{t}_s']))]
+            trial_len += [(t, n) for n in range(0, len(self.data[f'{t}_s']), step)]
         random.shuffle(trial_len)
-        if len(trial_len) <= num_transitions:
+        if len(trial_len) < num_transitions:
             return None, None, False
         for t, n in trial_len[:num_transitions]:
             states.append(self.data[f'{t}_s'][n, :])
@@ -162,7 +162,7 @@ class TransitionDataset(torch.utils.data.Dataset):
             ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
             random.shuffle(ep_trials)
             dem_states, dem_actions, dem = self.get_trial(ep_trials[:-1], self.num_context)
-            test_states, test_actions, test = self.get_trial([ep_trials[-1]], self.num_test)
+            test_states, test_actions, test = self.get_trial([ep_trials[-1]], self.num_test, step=self.action_range)
         return dem_states, dem_actions, test_states, test_actions
 
     def __len__(self):
