@@ -23,7 +23,7 @@ class MlpModel(nn.Module):
             hidden_sizes,  # Can be empty list or None for none.
             output_size=None,  # if None, last layer has nonlinearity applied.
             nonlinearity=torch.nn.ReLU,  # Module, not Functional.
-            dropout=None # Dropout value
+            dropout=None  # Dropout value
     ):
         super().__init__()
         if isinstance(hidden_sizes, int):
@@ -33,11 +33,11 @@ class MlpModel(nn.Module):
         hidden_layers = [nn.Linear(n_in, n_out) for n_in, n_out in
                          zip([input_size] + hidden_sizes[:-1], hidden_sizes)]
         sequence = list()
-        for l, layer in enumerate(hidden_layers):
-            if dropout is not None and l != (len(hidden_sizes)-1):
+        for i, layer in enumerate(hidden_layers):
+            if dropout is not None:
                 sequence.extend([layer, nonlinearity(), nn.Dropout(dropout)])
             else:
-                 sequence.extend([layer, nonlinearity()])
+                sequence.extend([layer, nonlinearity()])
 
         if output_size is not None:
             last_size = hidden_sizes[-1] if hidden_sizes else input_size
@@ -210,8 +210,10 @@ class ATCEncoder(pl.LightningModule):
         self.lr = self.hparams.lr
         self.target_update_interval = self.hparams.target_update_interval
         self.target_update_tau = self.hparams.target_update_tau
-        self.encoder = EncoderModel(image_shape=[3, self.hparams.size, self.hparams.size], latent_size=self.hparams.latent_size,
-                                    channels=self.hparams.channels, kernel_sizes=self.hparams.filter, strides=self.hparams.strides)
+        self.encoder = EncoderModel(image_shape=[3, self.hparams.size, self.hparams.size],
+                                    latent_size=self.hparams.latent_size,
+                                    channels=self.hparams.channels, kernel_sizes=self.hparams.filter,
+                                    strides=self.hparams.strides)
         self.target_encoder = copy.deepcopy(self.encoder)
         self.contrast_model = ContrastModel(self.hparams.latent_size, self.hparams.anchor_size)
         self.celoss = nn.CrossEntropyLoss()
