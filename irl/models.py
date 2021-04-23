@@ -16,7 +16,6 @@ class TransformerModel(torch.nn.Module):
 
     def __init__(self, ntoken, nout, ninp=128, nhead=4, nhid=64, nlayers=2, dropout=0.):
         super(TransformerModel, self).__init__()
-        self.model_type = 'Transformer'
         encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         self.encoder = torch.nn.Linear(ntoken, ninp)
