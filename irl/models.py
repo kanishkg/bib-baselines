@@ -1,13 +1,33 @@
+import math
 from argparse import ArgumentParser
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch.nn import TransformerEncoder, TransformerEncoderLayer
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
 from atc.models import MlpModel
 from irl.datasets import TransitionDataset, TestTransitionDataset
+
+
+class TransformerModel(torch.nn.Module):
+
+    def __init__(self, ntoken, nout, ninp=128, nhead=4, nhid=64, nlayers=2, dropout=0.):
+        super(TransformerModel, self).__init__()
+        self.model_type = 'Transformer'
+        encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
+        self.encoder = torch.nn.Linear(ntoken, ninp)
+        self.ninp = ninp
+        self.decoder = torch.nn.Linear(ninp, nout)
+
+    def forward(self, src):
+        src = F.relu(self.encoder(src)) * math.sqrt(self.ninp)
+        output = self.transformer_encoder(src)
+        output = F.relu(self.decoder(output))
+        return output
 
 
 class ContextImitation(pl.LightningModule):
@@ -34,8 +54,10 @@ class ContextImitation(pl.LightningModule):
         self.beta = self.hparams.beta
         self.gamma = self.hparams.gamma
 
-        self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
-                                         output_size=self.context_dim)
+        # self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
+        #                                  output_size=self.context_dim)
+        self.context_enc_mean = TransformerModel(self.state_dim + self.action_dim, nout=self.context_dim)
+
         # self.context_enc_std = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
         #                                 output_size=self.context_dim)
 
@@ -179,16 +201,15 @@ class ContextImitation(pl.LightningModule):
         max_unexpected_surprise = np.max(surprise_unexpected)
 
         correct_mean = mean_expected_surprise < mean_unexpected_surprise + 0.5 * (
-                    mean_expected_surprise == mean_unexpected_surprise)
+                mean_expected_surprise == mean_unexpected_surprise)
         correct_max = max_expected_surprise < max_unexpected_surprise + 0.5 * (
-                    max_expected_surprise == max_unexpected_surprise)
+                max_expected_surprise == max_unexpected_surprise)
         self.log('test_expected_surprise', mean_expected_surprise, on_epoch=True, logger=True)
         self.log('test_unexpected_surprise', mean_unexpected_surprise, prog_bar=True, logger=True)
         self.log('test_expected_surprisem', max_expected_surprise, on_epoch=True, logger=True)
         self.log('test_unexpected_surprisem', max_unexpected_surprise, prog_bar=True, logger=True)
         self.log('accuracy_mean', correct_mean, prog_bar=True, logger=True)
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
-
 
     def configure_optimizers(self):
         optim = torch.optim.Adam(self.parameters(), lr=self.lr)
