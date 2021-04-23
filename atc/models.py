@@ -23,6 +23,7 @@ class MlpModel(nn.Module):
             hidden_sizes,  # Can be empty list or None for none.
             output_size=None,  # if None, last layer has nonlinearity applied.
             nonlinearity=torch.nn.ReLU,  # Module, not Functional.
+            dropout=None # Dropout value
     ):
         super().__init__()
         if isinstance(hidden_sizes, int):
@@ -32,8 +33,12 @@ class MlpModel(nn.Module):
         hidden_layers = [nn.Linear(n_in, n_out) for n_in, n_out in
                          zip([input_size] + hidden_sizes[:-1], hidden_sizes)]
         sequence = list()
-        for layer in hidden_layers:
-            sequence.extend([layer, nonlinearity()])
+        for l, layer in enumerate(hidden_layers):
+            if dropout is not None and l != (len(hidden_sizes)-1):
+                sequence.extend([layer, nonlinearity(), nn.Dropout(dropout)])
+            else:
+                 sequence.extend([layer, nonlinearity()])
+
         if output_size is not None:
             last_size = hidden_sizes[-1] if hidden_sizes else input_size
             sequence.append(torch.nn.Linear(last_size, output_size))
