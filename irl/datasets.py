@@ -146,7 +146,7 @@ class TransitionDataset(torch.utils.data.Dataset):
             return None, None, False
         for t, n in trial_len[:num_transitions]:
             states.append(self.data[f'{t}_s'][n, :])
-            if actions_xy.shape[0] > n + self.action_range:
+            if self.data[f'{t}_a'].shape[0] > n + self.action_range:
                 actions_xy = self.data[f'{t}_a'][n:n + self.action_range, :]
             else:
                 actions_xy = self.data[f'{t}_a'][n:, :]
