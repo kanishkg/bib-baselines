@@ -246,6 +246,7 @@ class ContextImitation(pl.LightningModule):
                 DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
         return test_dataloaders
 
+
 class ContextImitation(pl.LightningModule):
 
     @staticmethod
@@ -378,7 +379,9 @@ class ContextImitation(pl.LightningModule):
         return optim
 
     def train_dataloader(self):
-        train_dataset = RawTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train', process_data=self.hparams.process_data, size=(self.hparams.size, self.hparams.size))
+        train_dataset = RawTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
+                                             process_data=self.hparams.process_data,
+                                             size=(self.hparams.size, self.hparams.size))
         train_loader = DataLoader(dataset=train_dataset, batch_size=self.hparams.batch_size,
                                   num_workers=self.hparams.num_workers, pin_memory=True, shuffle=True)
         return train_loader
@@ -387,7 +390,9 @@ class ContextImitation(pl.LightningModule):
         val_datasets = []
         val_loaders = []
         for t in self.hparams.types:
-            val_datasets.append(RawTransitionDataset(self.hparams.data_path, types=[t], mode='val', process_data=self.hparams.process_data, size=(self.hparams.size, self.hparams.size)))
+            val_datasets.append(RawTransitionDataset(self.hparams.data_path, types=[t], mode='val',
+                                                     process_data=self.hparams.process_data,
+                                                     size=(self.hparams.size, self.hparams.size)))
             val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=self.hparams.batch_size,
                                           num_workers=self.hparams.num_workers, pin_memory=True, shuffle=False))
         return val_loaders
