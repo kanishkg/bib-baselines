@@ -247,7 +247,7 @@ class ContextImitation(pl.LightningModule):
         return test_dataloaders
 
 
-class ContextImitation(pl.LightningModule):
+class ContextImitationPixel(pl.LightningModule):
 
     @staticmethod
     def add_model_specific_args(parent_parser):
