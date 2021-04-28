@@ -313,7 +313,7 @@ class RawTransitionDataset(torch.utils.data.Dataset):
         cap.release()
         return frame
 
-    def get_trial(self, video, trials, num_transitions, step=1):
+    def get_trial(self, trials, num_transitions, step=1):
         # retrieve state embeddings and actions from cached file
         states = []
         actions = []
@@ -326,6 +326,7 @@ class RawTransitionDataset(torch.utils.data.Dataset):
             return None, None, False
 
         for t, n in trial_len[:num_transitions]:
+            video = self.data_tuples[t][n][0]
             states.append(self._get_frame(video, self.data_tuples[t][n][1]))
 
             if len(self.data_tuples[t]) > n + self.action_range:
@@ -341,14 +342,13 @@ class RawTransitionDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         # retrieve 2 expert trajectories
-        video = self.data_tuples[idx][0][0]
         dem = False
         test = False
         while not dem or not test:
             ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
             random.shuffle(ep_trials)
-            dem_states, dem_actions, dem = self.get_trial(video, ep_trials[:-1], self.num_context)
-            test_states, test_actions, test = self.get_trial(video, [ep_trials[-1]], self.num_test,
+            dem_states, dem_actions, dem = self.get_trial(ep_trials[:-1], self.num_context)
+            test_states, test_actions, test = self.get_trial([ep_trials[-1]], self.num_test,
                                                              step=self.action_range)
         return dem_states, dem_actions, test_states, test_actions
 
