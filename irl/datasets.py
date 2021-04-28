@@ -224,3 +224,133 @@ class TestTransitionDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.tot_trials // self.num_trials
+
+
+class RawTransitionDataset(torch.utils.data.Dataset):
+
+    def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9, action_range=10,
+                 process_data=0):
+        self.path = path
+        self.types = types
+        self.size = size
+        self.mode = mode
+        self.num_trials = num_trials
+        self.num_context = num_context
+        self.num_test = num_test
+        self.action_range = action_range
+        self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
+        self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
+        types_str = '_'.join(self.types)
+
+        self.path_list = []
+        self.json_list = []
+        for t in types:
+            print(f'reading files of type {t} in {mode}')
+            paths = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}.mp4')]
+            jsons = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}.json') and 'index' not in x]
+
+            paths = sorted(paths)
+            jsons = sorted(jsons)
+
+            if mode == 'train':
+                self.path_list += paths[:int(0.8 * len(jsons))]
+                self.json_list += jsons[:int(0.8 * len(jsons))]
+            elif mode == 'val':
+                self.path_list += paths[int(0.8 * len(jsons)):]
+                self.json_list += jsons[int(0.8 * len(jsons)):]
+            else:
+                self.path_list += paths
+                self.json_list += jsons
+
+        if process_data:
+            print(f'processing files {len(self.json_list)}')
+            for j, v in zip(self.json_list, self.path_list):
+                print(j)
+                with open(j, 'r') as f:
+                    state = json.load(f)
+                ep_lens = [len(x) for x in state]
+                past_len = 0
+                for e, l in enumerate(ep_lens):
+                    self.data_tuples.append([])
+                    # skip first 30 frames and last 83 frames
+                    for f in range(30, l - 83):
+                        # find action taken; this calculation is approximate
+                        f0x, f0y = state[e][f]['agent'][0]
+                        f1x, f1y = state[e][f + 1]['agent'][0]
+                        dx = (f1x - f0x) / 2.
+                        dy = (f1y - f0y) / 2.
+                        action = [dx, dy]
+                        # action = ACTION_LIST.index([dx, dy])
+                        self.data_tuples[-1].append((v, past_len + f, action))
+                    print(len(self.data_tuples[-1]))
+                    assert len(self.data_tuples[-1]) > 0
+                    past_len += l
+
+            index_dict = {'data_tuples': self.data_tuples}
+            with open(os.path.join(self.path, f'index_bib_{mode}_{types_str}.json'), 'w') as fp:
+                json.dump(index_dict, fp)
+
+        else:
+            with open(os.path.join(self.path, f'index_bib_{mode}_{types_str}.json'), 'r') as fp:
+                index_dict = json.load(fp)
+            self.data_tuples = index_dict['data_tuples']
+
+        self.tot_trials = len(self.path_list) * 9
+
+    def _get_frame(self, video, frame_idx):
+        cap = cv2.VideoCapture(video)
+        # read frame at id and resize
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        _, frame = cap.read()
+        if self.size is not None:
+            assert frame is not None, f'frame is empty {frame_idx}, {video}, i'
+            frame = cv2.resize(frame, self.size)
+        frame = torch.tensor(frame).permute(2, 0, 1)
+        # return frames as a torch tensor f x c x w x h
+        frame = frame.to(torch.float32) / 255.
+        cap.release()
+        return frame
+
+    def get_trial(self, video, trials, num_transitions, step=1):
+        # retrieve state embeddings and actions from cached file
+        states = []
+        actions = []
+        trial_len = []
+
+        for t in trials:
+            trial_len += [(t, n) for n in range(0, len(self.data_tuples[t]), step)]
+        random.shuffle(trial_len)
+        if len(trial_len) < num_transitions:
+            return None, None, False
+
+        for t, n in trial_len[:num_transitions]:
+            states.append(self._get_frame(video, self.data_tuples[t][n][1]))
+
+            if len(self.data_tuples[t]) > n + self.action_range:
+                actions_xy = [d[2] for d in self.data_tuples[t][n:n+self.action_range]]
+            else:
+                actions_xy = [d[2] for d in self.data_tuples[t][n:]]
+            actions_xy = np.array(actions_xy)
+            actions_xy = np.mean(actions_xy, axis=0)
+            actions.append(actions_xy)
+        states = torch.stack(states, dim=0)
+        actions = torch.tensor(np.array(actions))
+        return states, actions, True
+
+    def __getitem__(self, idx):
+        # retrieve 2 expert trajectories
+        video = self.data_tuples[idx][0][0]
+        dem = False
+        test = False
+        while not dem or not test:
+            ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
+            random.shuffle(ep_trials)
+            dem_states, dem_actions, dem = self.get_trial(video, ep_trials[:-1], self.num_context)
+            test_states, test_actions, test = self.get_trial(video, [ep_trials[-1]], self.num_test,
+                                                             step=self.action_range)
+        return dem_states, dem_actions, test_states, test_actions
+
+    def __len__(self):
+        return self.tot_trials // self.num_trials
