@@ -263,6 +263,8 @@ class ContextImitationPixel(pl.LightningModule):
         parser.add_argument('--channels', nargs='+', type=int, default=[32, 32, 32, 32])
         parser.add_argument('--filter', nargs='+', type=int, default=[3, 3, 3, 3])
         parser.add_argument('--strides', nargs='+', type=int, default=[2, 2, 2, 1])
+        parser.add_argument('--process_data', type=int, default=0)
+
         return parser
 
     def __init__(self, hparams):
