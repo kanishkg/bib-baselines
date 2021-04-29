@@ -305,7 +305,7 @@ class RawTransitionDataset(torch.utils.data.Dataset):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
         _, frame = cap.read()
         if self.size is not None:
-            assert frame is not None, f'frame is empty {frame_idx}, {video}, i'
+            assert frame is not None, f'frame is empty {frame_idx}, {video}'
             frame = cv2.resize(frame, self.size)
         frame = torch.tensor(frame).permute(2, 0, 1)
         # return frames as a torch tensor f x c x w x h
