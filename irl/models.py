@@ -305,8 +305,8 @@ class ContextImitationPixel(pl.LightningModule):
         test_actions = test_actions.float()
         test_frames = test_frames.float()
 
-        dem_states = self.encoder(dem_frames)
-        test_states = self.encoder(test_frames)
+        dem_states, _ = self.encoder(dem_frames)
+        test_states, _ = self.encoder(test_frames)
         # concatenate states and actions to get expert trajectory
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
 
