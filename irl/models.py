@@ -283,7 +283,8 @@ class ContextImitationPixel(pl.LightningModule):
         #                             latent_size=self.hparams.state_dim,
         #                             channels=self.hparams.channels, kernel_sizes=self.hparams.filter,
         #                             strides=self.hparams.strides)
-        self.encoder = ATCEncoder.load_from_checkpoint('/data/kvg245/bib-tom/lightning_logs/version_911764/checkpoints/epoch\=31-step\=342118.ckpt')
+        self.encoder = ATCEncoder.load_from_checkpoint(
+            '/data/kvg245/bib-tom/lightning_logs/version_911764/checkpoints/epoch\=31-step\=342118.ckpt')
         self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
                                          output_size=self.context_dim)
         # self.context_enc_mean = TransformerModel(self.state_dim + self.action_dim, nout=self.context_dim,
