@@ -8,7 +8,7 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
-from atc.models import MlpModel, EncoderModel
+from atc.models import MlpModel, EncoderModel, ATCEncoder
 from irl.datasets import TransitionDataset, TestTransitionDataset, RawTransitionDataset
 
 
@@ -279,10 +279,11 @@ class ContextImitationPixel(pl.LightningModule):
         self.gamma = self.hparams.gamma
         self.dropout = self.hparams.dropout
 
-        self.encoder = EncoderModel(image_shape=[3, self.hparams.size, self.hparams.size],
-                                    latent_size=self.hparams.state_dim,
-                                    channels=self.hparams.channels, kernel_sizes=self.hparams.filter,
-                                    strides=self.hparams.strides)
+        # self.encoder = EncoderModel(image_shape=[3, self.hparams.size, self.hparams.size],
+        #                             latent_size=self.hparams.state_dim,
+        #                             channels=self.hparams.channels, kernel_sizes=self.hparams.filter,
+        #                             strides=self.hparams.strides)
+        self.encoder = ATCEncoder.load_from_checkpoint('/data/kvg245/bib-tom/lightning_logs/version_911764/checkpoints/epoch\=31-step\=342118.ckpt')
         self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
                                          output_size=self.context_dim)
         # self.context_enc_mean = TransformerModel(self.state_dim + self.action_dim, nout=self.context_dim,
@@ -305,8 +306,8 @@ class ContextImitationPixel(pl.LightningModule):
         test_actions = test_actions.float()
         test_frames = test_frames.float()
 
-        dem_states, _ = self.encoder(dem_frames)
-        test_states, _ = self.encoder(test_frames)
+        dem_states, _ = self.encoder.encoder(dem_frames)
+        test_states, _ = self.encoder.encoder(test_frames)
         # concatenate states and actions to get expert trajectory
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
 
