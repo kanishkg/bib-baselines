@@ -370,36 +370,16 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
         self.action_range = action_range
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
-        types_str = '_'.join(self.types)
 
         self.path_list = []
         self.json_list = []
-        for t in types:
-            print(f'reading files of type {t} in {mode}')
-            paths = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}.mp4')]
-            jsons = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}.json') and 'index' not in x]
-
-            paths = sorted(paths)
-            jsons = sorted(jsons)
-
-            if mode == 'train':
-                self.path_list += paths[:int(0.8 * len(jsons))]
-                self.json_list += jsons[:int(0.8 * len(jsons))]
-            elif mode == 'val':
-                self.path_list += paths[int(0.8 * len(jsons)):]
-                self.json_list += jsons[int(0.8 * len(jsons)):]
-            else:
-                self.path_list += paths
-                self.json_list += jsons
 
         if process_data:
             raise NotImplementedError
         else:
-            with open(f'{self.path}_test_{type}e.pickle', 'rb') as handle:
+            with open(f'{self.path}_test_{types}e.pickle', 'rb') as handle:
                 self.data_expected = pickle.load(handle)
-            with open(f'{self.path}_test_{type}u.pickle', 'rb') as handle:
+            with open(f'{self.path}_test_{types}u.pickle', 'rb') as handle:
                 self.data_unexpected = pickle.load(handle)
 
         self.tot_trials = len(self.path_list) * 9

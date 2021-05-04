@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
 from atc.models import MlpModel, EncoderModel, ATCEncoder
-from irl.datasets import TransitionDataset, TestTransitionDataset, RawTransitionDataset
+from irl.datasets import TransitionDataset, TestTransitionDataset, RawTransitionDataset, TestRawTransitionDataset
 
 
 class TransformerModel(torch.nn.Module):
@@ -347,7 +347,7 @@ class ContextImitationPixel(pl.LightningModule):
         surprise_expected = []
         for i in range(test_expected_states.size(1)):
             test_actions, test_actions_pred = self.forward(
-                [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :].unsqueeze(1),
+                [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :, :, :].unsqueeze(1),
                  test_expected_actions[:, i, :].unsqueeze(1)])
             loss = F.mse_loss(test_actions, test_actions_pred)
             surprise_expected.append(loss.cpu().numpy())
@@ -358,7 +358,7 @@ class ContextImitationPixel(pl.LightningModule):
         surprise_unexpected = []
         for i in range(test_unexpected_states.size(1)):
             test_actions, test_actions_pred = self.forward(
-                [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :].unsqueeze(1),
+                [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :, :, :].unsqueeze(1),
                  test_unexpected_actions[:, i, :].unsqueeze(1)])
 
             loss = F.mse_loss(test_actions, test_actions_pred)
@@ -405,7 +405,9 @@ class ContextImitationPixel(pl.LightningModule):
         test_datasets = []
         test_dataloaders = []
         for t in self.hparams.types:
-            test_datasets.append(TestTransitionDataset(self.hparams.data_path, type=t))
+            test_datasets.append(
+                TestRawTransitionDataset(self.hparams.data_path, types=t, process_data=self.hparams.process_data,
+                                      size=(self.hparams.size, self.hparams.size)))
             test_dataloaders.append(
                 DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
         return test_dataloaders
