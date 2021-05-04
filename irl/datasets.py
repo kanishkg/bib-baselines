@@ -377,8 +377,14 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
         if process_data:
             raise NotImplementedError
         else:
-            with open(f'{self.path}_test_{types}e.pickle', 'rb') as handle:
-                self.data_expected = pickle.load(handle)
+
+            with open(os.path.join(self.path, f'index_bib_test_{types}e.json'), 'r') as fp:
+                index_dict = json.load(fp)
+            self.data_expected = index_dict['data_tuples']
+            with open(os.path.join(self.path, f'index_bib_test_{types}u.json'), 'r') as fp:
+                index_dict = json.load(fp)
+            self.data_unexpected = index_dict['data_tuples']
+
             with open(f'{self.path}_test_{types}u.pickle', 'rb') as handle:
                 self.data_unexpected = pickle.load(handle)
 
