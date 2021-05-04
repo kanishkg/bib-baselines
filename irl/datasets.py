@@ -430,8 +430,8 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
         fam_unexpected_states, fam_unexpected_actions = self.get_trial(ep_trials[:-1], self.data_unexpected)
 
         # retrieve complete test trajectories
-        test_expected_states, test_expected_actions = self.get_trial([ep_trials[-1]], self.data_expected)
-        test_unexpected_states, test_unexpected_actions = self.get_trial([ep_trials[-1]], self.data_unexpected)
+        test_expected_states, test_expected_actions = self.get_trial([ep_trials[-1]], self.data_expected, step=self.action_range)
+        test_unexpected_states, test_unexpected_actions = self.get_trial([ep_trials[-1]], self.data_unexpected, step=self.action_range)
 
         return fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
            fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions
