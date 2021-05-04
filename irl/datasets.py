@@ -400,7 +400,7 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
         cap.release()
         return frame
 
-    def get_trial(self, trials, data, step=1):
+    def get_trial(self, trials, data, step=1, shuffle=False):
         # retrieve state embeddings and actions from cached file
         states = []
         actions = []
@@ -408,7 +408,9 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
 
         for t in trials:
             trial_len += [(t, n) for n in range(0, len(data[t]), step)]
-
+        if shuffle:
+            random.shuffle(trial_len)
+            trial_len = trial_len[:100]
         for t, n in trial_len:
             video = data[t][n][0]
             states.append(self._get_frame(video, data[t][n][1]))
@@ -426,8 +428,8 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
         ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
 
         # retrieve complete fam trajectories
-        fam_expected_states, fam_expected_actions = self.get_trial(ep_trials[:-1], self.data_expected)
-        fam_unexpected_states, fam_unexpected_actions = self.get_trial(ep_trials[:-1], self.data_unexpected)
+        fam_expected_states, fam_expected_actions = self.get_trial(ep_trials[:-1], self.data_expected, shuffle=True)
+        fam_unexpected_states, fam_unexpected_actions = self.get_trial(ep_trials[:-1], self.data_unexpected, shuffle=True)
 
         # retrieve complete test trajectories
         test_expected_states, test_expected_actions = self.get_trial([ep_trials[-1]], self.data_expected, step=self.action_range)
