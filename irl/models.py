@@ -306,6 +306,11 @@ class ContextImitationPixel(pl.LightningModule):
         dem_actions = dem_actions.float()
         test_actions = test_actions.float()
         test_frames = test_frames.float()
+        print(dem_frames.size())
+        print(dem_actions.size())
+
+        print(test_frames.size())
+        print(test_actions.size())
 
         dem_states, _ = self.encoder.encoder(dem_frames)
         test_states, _ = self.encoder.encoder(test_frames)
