@@ -209,7 +209,6 @@ class TestTransitionDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         # only works with batch size 1
         ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
-        random.shuffle(ep_trials)
 
         # retrieve complete fam trajectories
         fam_expected_states, fam_expected_actions = self.get_trial(ep_trials[:-1], self.data_expected)
@@ -228,7 +227,8 @@ class TestTransitionDataset(torch.utils.data.Dataset):
 
 class RawTransitionDataset(torch.utils.data.Dataset):
 
-    def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9, action_range=10,
+    def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9,
+                 action_range=10,
                  process_data=0):
         self.path = path
         self.types = types
@@ -330,7 +330,7 @@ class RawTransitionDataset(torch.utils.data.Dataset):
             states.append(self._get_frame(video, self.data_tuples[t][n][1]))
 
             if len(self.data_tuples[t]) > n + self.action_range:
-                actions_xy = [d[2] for d in self.data_tuples[t][n:n+self.action_range]]
+                actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
             else:
                 actions_xy = [d[2] for d in self.data_tuples[t][n:]]
             actions_xy = np.array(actions_xy)
@@ -351,6 +351,109 @@ class RawTransitionDataset(torch.utils.data.Dataset):
             test_states, test_actions, test = self.get_trial([ep_trials[-1]], self.num_test,
                                                              step=self.action_range)
         return dem_states, dem_actions, test_states, test_actions
+
+    def __len__(self):
+        return self.tot_trials // self.num_trials
+
+
+class TestRawTransitionDataset(torch.utils.data.Dataset):
+
+    def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9,
+                 action_range=10, process_data=0):
+        self.path = path
+        self.types = types
+        self.size = size
+        self.mode = mode
+        self.num_trials = num_trials
+        self.num_context = num_context
+        self.num_test = num_test
+        self.action_range = action_range
+        self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
+        self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
+        types_str = '_'.join(self.types)
+
+        self.path_list = []
+        self.json_list = []
+        for t in types:
+            print(f'reading files of type {t} in {mode}')
+            paths = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}.mp4')]
+            jsons = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}.json') and 'index' not in x]
+
+            paths = sorted(paths)
+            jsons = sorted(jsons)
+
+            if mode == 'train':
+                self.path_list += paths[:int(0.8 * len(jsons))]
+                self.json_list += jsons[:int(0.8 * len(jsons))]
+            elif mode == 'val':
+                self.path_list += paths[int(0.8 * len(jsons)):]
+                self.json_list += jsons[int(0.8 * len(jsons)):]
+            else:
+                self.path_list += paths
+                self.json_list += jsons
+
+        if process_data:
+            raise NotImplementedError
+        else:
+            with open(f'{self.path}_test_{type}e.pickle', 'rb') as handle:
+                self.data_expected = pickle.load(handle)
+            with open(f'{self.path}_test_{type}u.pickle', 'rb') as handle:
+                self.data_unexpected = pickle.load(handle)
+
+        self.tot_trials = len(self.path_list) * 9
+
+    def _get_frame(self, video, frame_idx):
+        cap = cv2.VideoCapture(video)
+        # read frame at id and resize
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        _, frame = cap.read()
+        if self.size is not None:
+            assert frame is not None, f'frame is empty {frame_idx}, {video}'
+            frame = cv2.resize(frame, self.size)
+        frame = torch.tensor(frame).permute(2, 0, 1)
+        # return frames as a torch tensor f x c x w x h
+        frame = frame.to(torch.float32) / 255.
+        cap.release()
+        return frame
+
+    def get_trial(self, trials, data, step=1):
+        # retrieve state embeddings and actions from cached file
+        states = []
+        actions = []
+        trial_len = []
+
+        for t in trials:
+            trial_len += [(t, n) for n in range(0, len(data[t]), step)]
+
+        for t, n in trial_len:
+            video = data[t][n][0]
+            states.append(self._get_frame(video, data[t][n][1]))
+            actions_xy = [d[2] for d in data[t][n:n + self.action_range]]
+            actions_xy = np.array(actions_xy)
+            actions_xy = np.mean(actions_xy, axis=0)
+            actions.append(actions_xy)
+
+        states = torch.stack(states, dim=0)
+        actions = torch.tensor(np.array(actions))
+        return states, actions
+
+    def __getitem__(self, idx):
+        # retrieve 2 expert trajectories
+        ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
+
+        # retrieve complete fam trajectories
+        fam_expected_states, fam_expected_actions = self.get_trial(ep_trials[:-1], self.data_expected)
+        fam_unexpected_states, fam_unexpected_actions = self.get_trial(ep_trials[:-1], self.data_unexpected)
+
+        # retrieve complete test trajectories
+        test_expected_states, test_expected_actions = self.get_trial([ep_trials[-1]], self.data_expected)
+        test_unexpected_states, test_unexpected_actions = self.get_trial([ep_trials[-1]], self.data_unexpected)
+
+        return fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
+           fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions
+
 
     def __len__(self):
         return self.tot_trials // self.num_trials
