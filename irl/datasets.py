@@ -385,7 +385,6 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
                 index_dict = json.load(fp)
             self.data_unexpected = index_dict['data_tuples']
 
-        self.tot_trials = len(self.path_list) * 9
 
     def _get_frame(self, video, frame_idx):
         cap = cv2.VideoCapture(video)
@@ -439,4 +438,4 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
 
 
     def __len__(self):
-        return self.tot_trials // self.num_trials
+        return len(self.data_expected)//9
