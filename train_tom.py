@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from pytorch_lightning import Trainer
 
-from irl.models import ContextImitation, ContextImitationPixel
+from irl.models import ContextImitation, ContextImitationPixel, ContextAIL
 from irl.datasets import TransitionDataset
 
 parser = ArgumentParser()
@@ -23,7 +23,7 @@ parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--batch_size', type=int, default=256)
 
 # add model specific args
-parser = ContextImitationPixel.add_model_specific_args(parser)
+parser = ContextAIL.add_model_specific_args(parser)
 
 # add all the available trainer options to argparse
 parser = Trainer.add_argparse_args(parser)
