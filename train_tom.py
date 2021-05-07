@@ -38,7 +38,7 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 
 # init model
-model = ContextImitationPixel(args)
+model = ContextAIL(args)
 
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
