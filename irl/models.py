@@ -490,15 +490,15 @@ class ContextAIL(pl.LightningModule):
         test_actions_pred_mu = F.tanh(self.policy_mean(test_context_states))
         test_actions_pred_sig = F.tanh(self.policy_std(test_context_states))
 
-        return test_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
+        return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
 
     def training_step(self, batch, batch_idx, optimizer_idx):
 
         if optimizer_idx == 0:
-            test_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
+            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
             test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-            test_state_context_action = torch.cat([test_states, context, test_actions], dim=1)
-            test_state_context_action_pred = torch.cat([test_states, context, test_actions_pred], dim=1)
+            test_state_context_action = torch.cat([test_context_states, test_actions], dim=1)
+            test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
 
             disc_neg = self.discriminator(test_state_context_action_pred)
             disc_pos = self.discriminator(test_state_context_action)
@@ -508,9 +508,9 @@ class ContextAIL(pl.LightningModule):
             return loss
 
         elif optimizer_idx == 1:
-            test_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
+            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
             test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-            test_state_context_action_pred = torch.cat([test_states, context, test_actions_pred], dim=1)
+            test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
 
             policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             disc_neg = self.discriminator(test_state_context_action_pred)
@@ -526,10 +526,10 @@ class ContextAIL(pl.LightningModule):
             return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        test_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
+        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
         test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-        test_state_context_action = torch.cat([test_states, context, test_actions], dim=1)
-        test_state_context_action_pred = torch.cat([test_states, context, test_actions_pred], dim=1)
+        test_state_context_action = torch.cat([test_context_states, test_actions], dim=1)
+        test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
 
         disc_neg = self.discriminator(test_state_context_action_pred)
         disc_pos = self.discriminator(test_state_context_action)
