@@ -503,7 +503,7 @@ class ContextAIL(pl.LightningModule):
             disc_neg = self.discriminator(test_state_context_action_pred)
             disc_pos = self.discriminator(test_state_context_action)
 
-            loss = torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7)
+            loss = torch.sum(torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7))
             self.log('disc_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return loss
 
@@ -515,9 +515,9 @@ class ContextAIL(pl.LightningModule):
             policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             disc_neg = self.discriminator(test_state_context_action_pred)
 
-            entropy = policy_dist.entropy()
-            nll = -policy_dist.log_prob(test_actions)
-            adv_loss = -torch.log(disc_neg)
+            entropy = torch.sum(policy_dist.entropy())
+            nll = torch.sum(-policy_dist.log_prob(test_actions))
+            adv_loss = torch.sum(-torch.log(disc_neg))
             loss = adv_loss + nll - self.beta * entropy
             self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
