@@ -487,8 +487,8 @@ class ContextAIL(pl.LightningModule):
         test_actions = test_actions.view(b * s, -1)
 
         # for each state in the test states calculate action
-        test_actions_pred_mu = F.tanh(self.policy_mean(test_context_states))
-        test_actions_pred_sig = F.sigmoid(self.policy_std(test_context_states))
+        test_actions_pred_mu = torch.tanh(self.policy_mean(test_context_states))
+        test_actions_pred_sig = torch.sigmoid(self.policy_std(test_context_states))
 
         return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
 
@@ -503,7 +503,7 @@ class ContextAIL(pl.LightningModule):
             disc_neg = self.discriminator(test_state_context_action_pred)
             disc_pos = self.discriminator(test_state_context_action)
 
-            loss = torch.sum(torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7))
+            loss = torch.mean(torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7))
             self.log('disc_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return loss
 
@@ -515,9 +515,9 @@ class ContextAIL(pl.LightningModule):
             policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             disc_neg = self.discriminator(test_state_context_action_pred)
 
-            entropy = torch.sum(policy_dist.entropy())
-            nll = torch.sum(-policy_dist.log_prob(test_actions))
-            adv_loss = torch.sum(-torch.log(disc_neg))
+            entropy = torch.mean(policy_dist.entropy())
+            nll = torch.mean(-policy_dist.log_prob(test_actions))
+            adv_loss = torch.mean(-torch.log(disc_neg))
             loss = adv_loss + nll - self.beta * entropy
             self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -535,11 +535,11 @@ class ContextAIL(pl.LightningModule):
         disc_pos = self.discriminator(test_state_context_action)
         policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
 
-        disc_loss = torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7)
+        disc_loss = torch.mean(torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7))
 
-        entropy = policy_dist.entropy()
-        nll = -policy_dist.log_prob(test_actions)
-        adv_loss = -torch.log(disc_neg)
+        entropy = torch.mean(policy_dist.entropy())
+        nll = torch.mean(-policy_dist.log_prob(test_actions))
+        adv_loss = torch.mean(-torch.log(disc_neg))
         gen_loss = adv_loss + nll - self.beta * entropy
 
         self.log('val_gen', gen_loss, on_epoch=True, logger=True)
