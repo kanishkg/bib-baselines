@@ -609,10 +609,6 @@ class ContextAIL(pl.LightningModule):
                                         lr=self.lr)
         return [disc_optim, policy_optim]
 
-    def on_epoch_start(self):
-        if self.current_epoch > 0:
-            self.trainer.accelerator_backend.setup_optimizers(self)
-
     def train_dataloader(self):
         train_dataset = RawTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
                                              process_data=self.hparams.process_data,
