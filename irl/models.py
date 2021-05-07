@@ -494,7 +494,7 @@ class ContextAIL(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
 
-        if self.current_epoch < 10:
+        if self.current_epoch < 1:
             test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
                 batch)
             test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
@@ -606,9 +606,14 @@ class ContextAIL(pl.LightningModule):
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        if self.current_epoch < 2:
-            optim = torch.optim.Adam(self.parameters(), lr=self.lr)
-            return [optim]
+        if self.current_epoch < 1:
+            disc_optim2 = torch.optim.Adam(
+                list(self.discriminator.parameters()) + list(self.context_enc_mean.parameters()) + list(
+                    self.encoder.parameters()), lr=self.lr)
+            policy_optim2 = torch.optim.Adam(list(self.policy_mean.parameters()) + list(self.policy_std.parameters()),
+                                            lr=self.lr)
+            return [disc_optim2, policy_optim2]
+
         else:
             disc_optim = torch.optim.Adam(
                 list(self.discriminator.parameters()) + list(self.context_enc_mean.parameters()) + list(
@@ -618,7 +623,7 @@ class ContextAIL(pl.LightningModule):
             return [disc_optim, policy_optim]
 
     def on_epoch_start(self):
-        if self.current_epoch > 1:
+        if self.current_epoch > 0:
             self.trainer.accelerator_backend.setup_optimizers(self)
 
     def train_dataloader(self):
