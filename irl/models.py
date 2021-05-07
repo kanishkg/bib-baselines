@@ -488,7 +488,7 @@ class ContextAIL(pl.LightningModule):
 
         # for each state in the test states calculate action
         test_actions_pred_mu = F.tanh(self.policy_mean(test_context_states))
-        test_actions_pred_sig = F.tanh(self.policy_std(test_context_states))
+        test_actions_pred_sig = F.sigmoid(self.policy_std(test_context_states))
 
         return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
 
