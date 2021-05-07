@@ -606,7 +606,7 @@ class ContextAIL(pl.LightningModule):
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        if self.current_epoch < 10:
+        if self.current_epoch < 2:
             optim = torch.optim.Adam(self.parameters(), lr=self.lr)
             return [optim]
         else:
@@ -618,7 +618,8 @@ class ContextAIL(pl.LightningModule):
             return [disc_optim, policy_optim]
 
     def on_epoch_start(self):
-        self.trainer.accelerator_backend.setup_optimizers(self)
+        if self.current_epoch > 1:
+            self.trainer.accelerator_backend.setup_optimizers(self)
 
     def train_dataloader(self):
         train_dataset = RawTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
