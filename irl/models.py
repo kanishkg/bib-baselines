@@ -508,7 +508,7 @@ class ContextAIL(pl.LightningModule):
             mse_loss = F.mse_loss(test_actions, test_actions_pred)
             self.log('disc_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            if self.current_epoch > 1:
+            if self.current_epoch > 12:
                 return loss
             else:
                 return mse_loss
@@ -533,7 +533,7 @@ class ContextAIL(pl.LightningModule):
             self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             self.log('adv_loss', adv_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            if self.current_epoch > 1:
+            if self.current_epoch > 12:
                 return loss
             else:
                 return mse_loss
