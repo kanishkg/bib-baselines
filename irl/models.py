@@ -494,54 +494,50 @@ class ContextAIL(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
 
-        if self.current_epoch < 1:
+        if optimizer_idx == 0:
             test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
                 batch)
             test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+            test_state_context_action = torch.cat([test_context_states, test_actions], dim=1)
+            test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
 
-            loss = F.mse_loss(test_actions, test_actions_pred)
-            self.log('mse_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            return loss
+            disc_neg = self.discriminator(test_state_context_action_pred)
+            disc_pos = self.discriminator(test_state_context_action)
 
-        else:
-            if optimizer_idx == 0:
-                test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
-                    batch)
-                test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-                test_state_context_action = torch.cat([test_context_states, test_actions], dim=1)
-                test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-
-                disc_neg = self.discriminator(test_state_context_action_pred)
-                disc_pos = self.discriminator(test_state_context_action)
-
-                loss = torch.mean(torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7))
-                mse_loss = F.mse_loss(test_actions, test_actions_pred)
-                self.log('disc_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-                self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
+            loss = torch.mean(torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7))
+            mse_loss = F.mse_loss(test_actions, test_actions_pred)
+            self.log('disc_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            if self.current_epoch > 1:
                 return loss
+            else:
+                return mse_loss
 
-            elif optimizer_idx == 1:
-                test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
-                    batch)
-                test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-                test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+        elif optimizer_idx == 1:
+            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
+                batch)
+            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+            test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
 
-                policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-                disc_neg = self.discriminator(test_state_context_action_pred)
+            policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+            disc_neg = self.discriminator(test_state_context_action_pred)
 
-                entropy = torch.mean(policy_dist.entropy())
-                nll = torch.mean(-policy_dist.log_prob(test_actions))
-                adv_loss = torch.mean(-torch.log(disc_neg))
-                loss = adv_loss + nll - self.beta * entropy
-                mse_loss = F.mse_loss(test_actions, test_actions_pred)
-                self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            entropy = torch.mean(policy_dist.entropy())
+            nll = torch.mean(-policy_dist.log_prob(test_actions))
+            adv_loss = torch.mean(-torch.log(disc_neg))
+            loss = adv_loss + nll - self.beta * entropy
+            mse_loss = F.mse_loss(test_actions, test_actions_pred)
+            self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-                self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-                self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-                self.log('adv_loss', adv_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-                self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('adv_loss', adv_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            if self.current_epoch > 1:
                 return loss
+            else:
+                return mse_loss
+
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
@@ -606,21 +602,12 @@ class ContextAIL(pl.LightningModule):
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        if self.current_epoch < 1:
-            disc_optim2 = torch.optim.Adam(
-                list(self.discriminator.parameters()) + list(self.context_enc_mean.parameters()) + list(
-                    self.encoder.parameters()), lr=self.lr)
-            policy_optim2 = torch.optim.Adam(list(self.policy_mean.parameters()) + list(self.policy_std.parameters()),
-                                            lr=self.lr)
-            return [disc_optim2, policy_optim2]
-
-        else:
-            disc_optim = torch.optim.Adam(
-                list(self.discriminator.parameters()) + list(self.context_enc_mean.parameters()) + list(
-                    self.encoder.parameters()), lr=self.lr)
-            policy_optim = torch.optim.Adam(list(self.policy_mean.parameters()) + list(self.policy_std.parameters()),
-                                            lr=self.lr)
-            return [disc_optim, policy_optim]
+        disc_optim = torch.optim.Adam(
+            list(self.discriminator.parameters()) + list(self.context_enc_mean.parameters()) + list(
+                self.encoder.parameters()), lr=self.lr)
+        policy_optim = torch.optim.Adam(list(self.policy_mean.parameters()) + list(self.policy_std.parameters()),
+                                        lr=self.lr)
+        return [disc_optim, policy_optim]
 
     def on_epoch_start(self):
         if self.current_epoch > 0:
