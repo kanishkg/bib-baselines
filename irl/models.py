@@ -559,12 +559,8 @@ class ContextNLL(pl.LightningModule):
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        disc_optim = torch.optim.Adam(
-            list(self.discriminator.parameters()) + list(self.context_enc_mean.parameters()) + list(
-                self.encoder.parameters()), lr=self.lr)
-        policy_optim = torch.optim.Adam(list(self.policy_mean.parameters()) + list(self.policy_std.parameters()),
-                                        lr=self.lr)
-        return [disc_optim, policy_optim]
+        optim = torch.optim.Adam(self.parameters(), lr = self.lr)
+        return optim
 
     def train_dataloader(self):
         train_dataset = RawTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
