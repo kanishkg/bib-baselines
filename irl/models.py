@@ -492,7 +492,7 @@ class ContextNLL(pl.LightningModule):
 
         return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx):
         test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
             batch)
         test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
