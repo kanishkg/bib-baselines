@@ -413,7 +413,7 @@ class ContextImitationPixel(pl.LightningModule):
         return test_dataloaders
 
 
-class ContextAIL(pl.LightningModule):
+class ContextNLL(pl.LightningModule):
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -455,10 +455,10 @@ class ContextAIL(pl.LightningModule):
         self.policy_std = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
                                    output_size=self.action_dim, dropout=self.dropout)
 
-        self.discriminator = torch.nn.Sequential(
-            MlpModel(input_size=self.state_dim + self.context_dim + self.action_dim,
-                     hidden_sizes=[256, 128, 256],
-                     output_size=1, dropout=self.dropout), torch.nn.Sigmoid())
+        # self.discriminator = torch.nn.Sequential(
+        #     MlpModel(input_size=self.state_dim + self.context_dim + self.action_dim,
+        #              hidden_sizes=[256, 128, 256],
+        #              output_size=1, dropout=self.dropout), torch.nn.Sigmoid())
 
         self.past_samples = []
 
@@ -493,75 +493,32 @@ class ContextAIL(pl.LightningModule):
         return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-
-        if optimizer_idx == 0:
-            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
-                batch)
-            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-            test_state_context_action = torch.cat([test_context_states, test_actions], dim=1)
-            test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-
-            disc_neg = self.discriminator(test_state_context_action_pred)
-            disc_pos = self.discriminator(test_state_context_action)
-
-            loss = torch.mean(torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7))
-            mse_loss = F.mse_loss(test_actions, test_actions_pred)
-            self.log('disc_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            if self.current_epoch > 12:
-                return loss
-            else:
-                return mse_loss
-
-        elif optimizer_idx == 1:
-            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
-                batch)
-            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-            test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-
-            policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-            disc_neg = self.discriminator(test_state_context_action_pred)
-
-            entropy = torch.mean(policy_dist.entropy())
-            nll = torch.mean(-policy_dist.log_prob(test_actions))
-            adv_loss = torch.mean(-torch.log(disc_neg))
-            loss = adv_loss + nll - self.beta * entropy
-            mse_loss = F.mse_loss(test_actions, test_actions_pred)
-            self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
-            self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.log('adv_loss', adv_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            if self.current_epoch > 12:
-                return loss
-            else:
-                return mse_loss
-
+        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
+            batch)
+        test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+        policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+        entropy = torch.mean(policy_dist.entropy())
+        nll = torch.mean(-policy_dist.log_prob(test_actions))
+        loss = nll - self.beta * entropy
+        mse_loss = F.mse_loss(test_actions, test_actions_pred)
+        self.log('loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
         test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-        test_state_context_action = torch.cat([test_context_states, test_actions], dim=1)
-        test_state_context_action_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-
-        disc_neg = self.discriminator(test_state_context_action_pred)
-        disc_pos = self.discriminator(test_state_context_action)
         policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-
-        disc_loss = torch.mean(torch.log(disc_neg + 1e-7) + torch.log(1 - disc_pos + 1e-7))
-
         entropy = torch.mean(policy_dist.entropy())
         nll = torch.mean(-policy_dist.log_prob(test_actions))
-        adv_loss = torch.mean(-torch.log(disc_neg))
-        gen_loss = adv_loss + nll - self.beta * entropy
+        loss = nll - self.beta * entropy
         mse_loss = F.mse_loss(test_actions, test_actions_pred)
         self.log('val_mse_loss', mse_loss, on_epoch=True, logger=True)
-        self.log('val_gen', gen_loss, on_epoch=True, logger=True)
-        self.log('val_disc', disc_loss, on_epoch=True, logger=True)
-        self.log('val_nll', disc_loss, on_epoch=True, logger=True)
-        self.log('val_adv', disc_loss, on_epoch=True, logger=True)
-        self.log('val_entropy', disc_loss, on_epoch=True, logger=True)
+        self.log('val_gen', loss, on_epoch=True, logger=True)
+        self.log('val_nll', nll, on_epoch=True, logger=True)
+        self.log('val_entropy', entropy, on_epoch=True, logger=True)
 
     def test_step(self, batch, batch_idx):
         fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
