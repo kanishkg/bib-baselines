@@ -705,11 +705,11 @@ class ContextAIL(pl.LightningModule):
         test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
         neg_disc = self.discriminator(test_context_states_actions)
         pos_disc = self.discriminator(test_context_states_actions_pred)
-        disc_loss = torch.log(pos_disc + 1e-8) + torch.log(1 - neg_disc + 1e-8)
+        disc_loss = torch.mean(torch.log(pos_disc + 1e-8)) + torch.mean(torch.log(1 - neg_disc + 1e-8))
         policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-        entropy = policy_dist.entropy()
+        entropy = torch.mean(policy_dist.entropy())
         nll = torch.mean(-policy_dist.log_prob(test_actions))
-        gen_loss = - pos_disc - self.beta * entropy
+        gen_loss = - torch.mean(pos_disc) - self.beta * entropy
         mse_loss = F.mse_loss(test_actions, test_actions_pred)
 
         self.log('val_mse_loss', mse_loss, on_epoch=True, logger=True)
