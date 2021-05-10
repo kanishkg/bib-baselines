@@ -559,7 +559,7 @@ class ContextNLL(pl.LightningModule):
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        optim = torch.optim.Adam(self.parameters(), lr = self.lr)
+        optim = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optim
 
     def train_dataloader(self):
@@ -591,6 +591,7 @@ class ContextNLL(pl.LightningModule):
             test_dataloaders.append(
                 DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
         return test_dataloaders
+
 
 class ContextAIL(pl.LightningModule):
 
@@ -624,20 +625,13 @@ class ContextAIL(pl.LightningModule):
         self.gamma = self.hparams.gamma
         self.dropout = self.hparams.dropout
 
-        self.encoder = ATCEncoder.load_from_checkpoint(
-            '/data/kvg245/bib-tom/lightning_logs/version_911764/checkpoints/epoch=31-step=342118.ckpt')
-        self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
-                                         output_size=self.context_dim)
+        self.generator = ContextNLL.load_from_checkpoint(
+            '/data/kvg245/bib-tom/lightning_logs/version_932019/checkpoints/epoch=19-step=4999.ckpt')
 
-        self.policy_mean = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
-                                    output_size=self.action_dim, dropout=self.dropout)
-        self.policy_std = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
-                                   output_size=self.action_dim, dropout=self.dropout)
-
-        # self.discriminator = torch.nn.Sequential(
-        #     MlpModel(input_size=self.state_dim + self.context_dim + self.action_dim,
-        #              hidden_sizes=[256, 128, 256],
-        #              output_size=1, dropout=self.dropout), torch.nn.Sigmoid())
+        self.discriminator = torch.nn.Sequential(
+            MlpModel(input_size=self.state_dim + self.context_dim + self.action_dim,
+                     hidden_sizes=[256, 128, 256],
+                     output_size=1, dropout=self.dropout), torch.nn.Sigmoid())
 
         self.past_samples = []
 
@@ -648,13 +642,13 @@ class ContextAIL(pl.LightningModule):
         test_actions = test_actions.float()
         test_frames = test_frames.float()
 
-        dem_states, _ = self.encoder.encoder(dem_frames)
-        test_states, _ = self.encoder.encoder(test_frames)
+        dem_states, _ = self.generator.encoder.encoder(dem_frames)
+        test_states, _ = self.generator.encoder.encoder(test_frames)
         # concatenate states and actions to get expert trajectory
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
 
         # embed expert trajectory to get a context embedding batch x samples x dim
-        context_mean_samples = self.context_enc_mean(dem_traj)
+        context_mean_samples = self.generator.context_enc_mean(dem_traj)
 
         # combine contexts of each meta episode
         context = torch.mean(context_mean_samples, dim=1)
@@ -671,20 +665,37 @@ class ContextAIL(pl.LightningModule):
 
         return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
 
-    def training_step(self, batch, batch_idx):
-        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(
-            batch)
-        test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-        policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-        entropy = torch.mean(policy_dist.entropy())
-        nll = torch.mean(-policy_dist.log_prob(test_actions))
-        loss = nll - self.beta * entropy
-        mse_loss = F.mse_loss(test_actions, test_actions_pred)
-        self.log('loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        return loss
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        if optimizer_idx == 0:
+            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
+                batch)
+            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+            test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
+            test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+            neg_disc = self.discriminator(test_context_states_actions)
+            pos_disc = self.discriminator(test_context_states_actions_pred)
+            disc_loss = torch.log(pos_disc + 1e-8) + torch.log(1 - neg_disc + 1e-8)
+            self.log('disc_loss', disc_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            return disc_loss
+
+        elif optimizer_idx == 1:
+            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
+                batch)
+            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+            test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+            pos_disc = self.discriminator(test_context_states_actions_pred)
+
+            policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+            entropy = policy_dist.entropy()
+            nll = torch.mean(-policy_dist.log_prob(test_actions))
+            gen_loss = - pos_disc - self.beta * entropy
+            mse_loss = F.mse_loss(test_actions, test_actions_pred)
+
+            self.log('gen_loss', gen_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            return gen_loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
@@ -738,7 +749,7 @@ class ContextAIL(pl.LightningModule):
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        optim = torch.optim.Adam(self.parameters(), lr = self.lr)
+        optim = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optim
 
     def train_dataloader(self):
