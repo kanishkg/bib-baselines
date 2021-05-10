@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from pytorch_lightning import Trainer
 
-from irl.models import ContextImitation, ContextImitationPixel, ContextNLL, ContextGAIl
+from irl.models import ContextImitation, ContextImitationPixel, ContextNLL, ContextAIL
 
 parser = ArgumentParser()
 
@@ -21,7 +21,7 @@ parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--batch_size', type=int, default=256)
 
 # add model specific args
-parser = ContextImitationPixel.add_model_specific_args(parser)
+parser = ContextAIL.add_model_specific_args(parser)
 
 # add all the available trainer options to argparse
 parser = Trainer.add_argparse_args(parser)
@@ -36,7 +36,7 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 
 # init model
-model = ContextImitationPixel(args)
+model = ContextAIL(args)
 
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
