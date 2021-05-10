@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from pytorch_lightning import Trainer
 
-from irl.models import ContextImitation, ContextImitationPixel, ContextNLL
+from irl.models import ContextImitation, ContextImitationPixel, ContextNLL, ContextGAIl
 
 parser = ArgumentParser()
 
@@ -36,7 +36,7 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 
 # init model
-model = ContextNLL(args)
+model = ContextImitationPixel(args)
 
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
