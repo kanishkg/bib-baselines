@@ -698,15 +698,23 @@ class ContextAIL(pl.LightningModule):
             return gen_loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.forward(batch)
+        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
+            batch)
         test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+        test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
+        test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+        neg_disc = self.discriminator(test_context_states_actions)
+        pos_disc = self.discriminator(test_context_states_actions_pred)
+        disc_loss = torch.log(pos_disc + 1e-8) + torch.log(1 - neg_disc + 1e-8)
         policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-        entropy = torch.mean(policy_dist.entropy())
+        entropy = policy_dist.entropy()
         nll = torch.mean(-policy_dist.log_prob(test_actions))
-        loss = nll - self.beta * entropy
+        gen_loss = - pos_disc - self.beta * entropy
         mse_loss = F.mse_loss(test_actions, test_actions_pred)
+
         self.log('val_mse_loss', mse_loss, on_epoch=True, logger=True)
-        self.log('val_gen', loss, on_epoch=True, logger=True)
+        self.log('val_loss', gen_loss, on_epoch=True, logger=True)
+        self.log('val_disc', disc_loss, on_epoch=True, logger=True)
         self.log('val_nll', nll, on_epoch=True, logger=True)
         self.log('val_entropy', entropy, on_epoch=True, logger=True)
 
@@ -749,8 +757,12 @@ class ContextAIL(pl.LightningModule):
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        optim = torch.optim.Adam(self.parameters(), lr=self.lr)
-        return optim
+        disc_optim = torch.optim.Adam(
+            list(self.discriminator.parameters()) + list(self.generator.encoder.parameters()) + list(
+                self.generator.context_enc_mean.parameters()), lr=self.lr)
+        gen_optim = torch.optim.Adam(list(self.generator.policy_std.parameters()) + list(
+                self.generator.policy_mean.parameters()), lr=self.lr)
+        return [disc_optim, gen_optim]
 
     def train_dataloader(self):
         train_dataset = RawTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
