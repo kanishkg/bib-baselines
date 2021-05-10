@@ -264,6 +264,7 @@ class RawTransitionDataset(torch.utils.data.Dataset):
                 self.path_list += paths
                 self.json_list += jsons
 
+        self.data_tuples = []
         if process_data:
             print(f'processing files {len(self.json_list)}')
             for j, v in zip(self.json_list, self.path_list):
