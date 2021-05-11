@@ -674,7 +674,7 @@ class ContextAIL(pl.LightningModule):
             test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
             neg_disc = self.discriminator(test_context_states_actions)
             pos_disc = self.discriminator(test_context_states_actions_pred)
-            disc_loss = torch.mean(torch.log(pos_disc + 1e-8)) + torch.mean(torch.log(1 - neg_disc + 1e-8))
+            disc_loss = torch.mean(torch.log(pos_disc + 1e-8)) - torch.mean(torch.log(1 - neg_disc + 1e-8))
             self.log('disc_loss', disc_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return disc_loss
 
