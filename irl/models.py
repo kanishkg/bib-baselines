@@ -688,7 +688,7 @@ class ContextAIL(pl.LightningModule):
             policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             entropy = torch.mean(policy_dist.entropy())
             nll = torch.mean(-policy_dist.log_prob(test_actions))
-            gen_loss = torch.mean(torch.log(pos_disc)) - self.beta * entropy
+            gen_loss = torch.mean(torch.log(pos_disc+1e-8)) - self.beta * entropy
             mse_loss = F.mse_loss(test_actions, test_actions_pred)
 
             self.log('gen_loss', gen_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
