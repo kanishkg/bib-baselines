@@ -448,7 +448,7 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
 class RewardTransitionDataset(torch.utils.data.Dataset):
 
     def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9,
-                 action_range=10, reward_type='sparse', process_data=0):
+                 action_range=10, process_data=0):
         self.path = path
         self.types = types
         self.size = size
