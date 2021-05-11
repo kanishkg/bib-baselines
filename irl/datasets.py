@@ -571,10 +571,10 @@ class RewardTransitionDataset(torch.utils.data.Dataset):
                 final_location = self.data_tuples[t][-1][4]
             distance_goal = ((goal_location[0] - final_location[0]) ** 2 + (
                     goal_location[1] - final_location[1]) ** 2) ** 0.5
-            if distance_goal < 15:
-                reward = 1.
+            if distance_goal < 20:
+                reward = - distance_goal
             else:
-                reward = 0.
+                reward = -100.
             actions_xy = np.array(actions_xy)
             actions_xy = np.mean(actions_xy, axis=0)
             actions.append(actions_xy)
