@@ -842,7 +842,7 @@ class PEARL(pl.LightningModule):
         self.softqnet2 = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
                                   hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
 
-        self.valuenet_target = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
+        self.valuenet_target = MlpModel(input_size=self.state_dim + self.context_dim,
                                         hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
 
         self.valuenet = MlpModel(input_size=self.state_dim + self.context_dim,
