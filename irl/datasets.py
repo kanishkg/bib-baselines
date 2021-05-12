@@ -627,12 +627,13 @@ class RewardTransitionDataset(torch.utils.data.Dataset):
         actions = []
         rewards = []
         trial_len = []
+        done = []
 
         for t in trials:
             trial_len += [(t, n) for n in range(0, len(self.data_tuples[t]), step)]
         random.shuffle(trial_len)
         if len(trial_len) < num_transitions:
-            return None, None, None, None, False
+            return None, None, None, None, None, False
 
         for t, n in trial_len[:num_transitions]:
             video = self.data_tuples[t][n][0]
@@ -643,9 +644,11 @@ class RewardTransitionDataset(torch.utils.data.Dataset):
             if len(self.data_tuples[t]) > n + self.action_range:
                 actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
                 final_location = self.data_tuples[t][n + self.action_range][4]
+                done.append(0.)
             else:
                 actions_xy = [d[2] for d in self.data_tuples[t][n:]]
                 final_location = self.data_tuples[t][-1][4]
+                done.append(1.)
             distance_goal = ((goal_location[0] - final_location[0]) ** 2 + (
                     goal_location[1] - final_location[1]) ** 2) ** 0.5
             if distance_goal < 20:
@@ -659,8 +662,9 @@ class RewardTransitionDataset(torch.utils.data.Dataset):
         states = torch.stack(states, dim=0)
         next_states = torch.stack(next_states, dim=0)
         rewards = torch.tensor(rewards)
+        done = torch.tensor(done)
         actions = torch.tensor(np.array(actions))
-        return states, actions, next_states, rewards, True
+        return states, actions, next_states, rewards, done, True
 
     def __getitem__(self, idx):
         # retrieve 2 expert trajectories
@@ -669,12 +673,12 @@ class RewardTransitionDataset(torch.utils.data.Dataset):
         while not dem or not test:
             ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
             random.shuffle(ep_trials)
-            dem_states, dem_actions, dem_next_states, dem_rewards, dem = self.get_trial(ep_trials[:-1],
+            dem_states, dem_actions, dem_next_states, dem_rewards, _, dem = self.get_trial(ep_trials[:-1],
                                                                                         self.num_context)
-            test_states, test_actions, test_next_states, test_rewards, test = self.get_trial([ep_trials[-1]],
+            test_states, test_actions, test_next_states, test_rewards, done, test = self.get_trial([ep_trials[-1]],
                                                                                              self.num_test,
                                                                                              step=self.action_range)
-        return dem_states, dem_actions, dem_next_states, dem_rewards, test_states, test_actions, test_next_states, test_rewards
+        return dem_states, dem_actions, dem_next_states, dem_rewards, test_states, test_actions, test_next_states, done, test_rewards
 
     def __len__(self):
         return self.tot_trials // self.num_trials

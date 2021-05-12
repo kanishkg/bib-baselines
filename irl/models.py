@@ -9,6 +9,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
 from atc.models import MlpModel, EncoderModel, ATCEncoder
+from atc.utils import update_state_dict
 from irl.datasets import TransitionDataset, TestTransitionDataset, RawTransitionDataset, TestRawTransitionDataset, \
     RewardTransitionDataset
 
@@ -805,7 +806,7 @@ class PEARL(pl.LightningModule):
         parser.add_argument('--state_dim', type=int, default=128)
         parser.add_argument('--action_dim', type=int, default=2)
         parser.add_argument('--beta', type=float, default=0.001)
-        parser.add_argument('--gamma', type=float, default=0.0)
+        parser.add_argument('--gamma', type=float, default=1.0)
         parser.add_argument('--context_dim', nargs='+', type=int, default=32)
         parser.add_argument('--dropout', type=float, default=0.2)
         parser.add_argument('--size', type=int, default=84)
@@ -813,12 +814,13 @@ class PEARL(pl.LightningModule):
         parser.add_argument('--filter', nargs='+', type=int, default=[3, 3, 3, 3])
         parser.add_argument('--strides', nargs='+', type=int, default=[2, 2, 2, 1])
         parser.add_argument('--process_data', type=int, default=0)
-
+        parser.add_argument('--target_update_interval', type=int, default=2)
         return parser
 
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
+        self.automatic_optimization = False
 
         self.lr = self.hparams.lr
         self.state_dim = self.hparams.state_dim
@@ -827,6 +829,9 @@ class PEARL(pl.LightningModule):
         self.beta = self.hparams.beta
         self.gamma = self.hparams.gamma
         self.dropout = self.hparams.dropout
+        self.target_update_interval = self.hparams.target_update_interval
+        self.done = None
+        self.target_value = None
 
         self.encoder = ATCEncoder.load_from_checkpoint(
             '/data/kvg245/bib-tom/lightning_logs/version_911764/checkpoints/epoch=31-step=342118.ckpt')
@@ -836,11 +841,19 @@ class PEARL(pl.LightningModule):
         self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
                                output_size=self.action_dim, dropout=self.dropout)
 
-        self.qnet = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
-                             hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
+        self.softqnet1 = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
+                                  hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
+        self.softqnet2 = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
+                                  hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
+
+        self.valuenet_target = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
+                                        hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
+
+        self.valuenet = MlpModel(input_size=self.state_dim + self.context_dim,
+                                 hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
 
     def forward(self, batch):
-        dem_frames, dem_actions, dem_next_frames, dem_r, test_frames, test_actions, test_next_frames, test_r = batch
+        dem_frames, dem_actions, dem_next_frames, dem_r, test_frames, test_actions, test_next_frames, test_r, done = batch
 
         dem_states, _ = self.generator.encoder.encoder(dem_frames)
         test_states, _ = self.generator.encoder.encoder(test_frames)
@@ -848,7 +861,7 @@ class PEARL(pl.LightningModule):
         test_next_states, _ = self.generator.encoder.encoder(test_next_frames)
 
         # concatenate states and actions to get expert trajectory
-        dem_traj = torch.cat([dem_states, dem_actions], dim=2)
+        dem_traj = torch.cat([dem_states, dem_actions, dem_next_states, dem_r], dim=2)
 
         # embed expert trajectory to get a context embedding batch x samples x dim
         context_mean_samples = self.generator.context_enc_mean(dem_traj)
@@ -861,65 +874,95 @@ class PEARL(pl.LightningModule):
         b, s, d = test_context_states.size()
         test_context_states = test_context_states.view(b * s, d)
         test_actions = test_actions.view(b * s, -1)
+        test_r = test_r.view(b * s, -1)
+        done = done.view(b * s, -1)
 
         # for each state in the test states calculate action
         test_actions_pred_mu = torch.tanh(self.policy_mean(test_context_states))
         test_actions_pred_sig = torch.sigmoid(self.policy_std(test_context_states))
 
-        return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
+        test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
+        q1 = self.softqnet1(test_context_states_actions)
+        q2 = self.softqnet2(test_context_states_actions)
+        value = self.valuenet(test_context_states)
+        return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, q1, q2, value, \
+               test_r, done
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
-        if optimizer_idx == 0:
-            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
-                batch)
-            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-            test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
-            test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-            neg_disc = self.discriminator(test_context_states_actions)
-            pos_disc = self.discriminator(test_context_states_actions_pred)
-            disc_loss = - torch.mean(torch.log(pos_disc + 1e-8)) - torch.mean(torch.log(1 - neg_disc + 1e-8))
-            self.log('disc_loss', disc_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            return disc_loss
+    def training_step(self, batch, batch_idx):
 
-        elif optimizer_idx == 1:
-            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
-                batch)
-            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-            test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-            pos_disc = self.discriminator(test_context_states_actions_pred)
+        opt = self.optimizers()
 
-            policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-            entropy = torch.mean(policy_dist.entropy())
-            nll = torch.mean(-policy_dist.log_prob(test_actions))
-            gen_loss = torch.mean(torch.log(pos_disc + 1e-8)) - self.beta * entropy
-            mse_loss = F.mse_loss(test_actions, test_actions_pred)
+        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
+        q1, q2, value, test_r, done = self.forward(batch)
+        policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+        test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+        predicted_value = self.valuenet(test_context_states)
 
-            self.log('gen_loss', gen_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            return gen_loss
+        target_value = self.valuenet_target(test_context_states)
+        target_q_value = test_r + (1 - done) * self.gamma * target_value
+
+        opt[0].zero_grad()
+        q1loss = F.mse_loss(q1, target_q_value.detach())
+        self.log('q1loss', q1loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.manual_backward(q1loss)
+        opt[0].step()
+
+        opt[1].zero_grad()
+        q2loss = F.mse_loss(self.q2, target_q_value.detach())
+        self.log('q2loss', q2loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.manual_backward(q2loss)
+        opt[1].step()
+
+        test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+        predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
+                                self.softqnet2(test_context_states_actions_pred))
+        target_value_func = predicted_q - policy_dist.log_prob(test_actions_pred)
+
+        opt[2].zero_grad()
+        value_loss = F.mse_loss(predicted_value, target_value_func.detach())
+        self.log('value_loss', value_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.manual_backward(value_loss)
+        opt[2].step()
+
+        opt[3].zero_grad()
+        policy_loss = torch.mean(policy_dist.log_prob(test_actions_pred) - predicted_q)
+        self.log('policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.manual_backward(policy_loss)
+        opt[3].step()
+
+        opt[4].zero_grad()
+        context_loss = q1loss + q2loss
+        self.manual_backward(context_loss)
+        opt[4].step()
+
+        update_state_dict(self.valuenet_target, self.valuenet.state_dict(), 1)
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
-            batch)
-        test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-        test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
-        test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-        neg_disc = self.discriminator(test_context_states_actions)
-        pos_disc = self.discriminator(test_context_states_actions_pred)
-        disc_loss = torch.mean(torch.log(pos_disc + 1e-8)) + torch.mean(torch.log(1 - neg_disc + 1e-8))
+        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
+        q1, q2, value, test_r, done = self.forward(batch)
         policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-        entropy = torch.mean(policy_dist.entropy())
-        nll = torch.mean(-policy_dist.log_prob(test_actions))
-        gen_loss = - torch.mean(pos_disc) - self.beta * entropy
-        mse_loss = F.mse_loss(test_actions, test_actions_pred)
+        test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+        predicted_value = self.valuenet(test_context_states)
 
-        self.log('val_mse_loss', mse_loss, on_epoch=True, logger=True)
-        self.log('val_loss', gen_loss, on_epoch=True, logger=True)
-        self.log('val_disc', disc_loss, on_epoch=True, logger=True)
-        self.log('val_nll', nll, on_epoch=True, logger=True)
-        self.log('val_entropy', entropy, on_epoch=True, logger=True)
+        target_value = self.valuenet_target(test_context_states)
+        target_q_value = test_r + (1 - done) * self.gamma * target_value
+
+        q1loss = F.mse_loss(q1, target_q_value.detach())
+        q2loss = F.mse_loss(q2, target_q_value.detach())
+
+        test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+        predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
+                                self.softqnet2(test_context_states_actions_pred))
+        target_value_func = predicted_q - policy_dist.log_prob(test_actions_pred)
+
+        value_loss = F.mse_loss(predicted_value, target_value_func.detach())
+
+        policy_loss = torch.mean(policy_dist.log_prob(test_actions_pred) - predicted_q)
+
+        self.log('val_q1loss', q1loss, on_epoch=True, logger=True)
+        self.log('val_q2loss', q2loss, on_epoch=True, logger=True)
+        self.log('val_value_loss', value_loss, on_epoch=True, logger=True)
+        self.log('val_policy_loss', policy_loss, on_epoch=True, logger=True)
 
     def test_step(self, batch, batch_idx):
         fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
@@ -960,12 +1003,13 @@ class PEARL(pl.LightningModule):
         self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
     def configure_optimizers(self):
-        disc_optim = torch.optim.Adam(
-            list(self.discriminator.parameters()) + list(self.generator.encoder.parameters()) + list(
-                self.generator.context_enc_mean.parameters()), lr=self.lr)
-        gen_optim = torch.optim.Adam(list(self.generator.policy_std.parameters()) + list(
-            self.generator.policy_mean.parameters()), lr=self.lr)
-        return [disc_optim, gen_optim]
+        q1_opt = torch.optim.Adam(self.softqnet1.parameters(), lr=self.lr)
+        q2_opt = torch.optim.Adam(self.softqnet2.parameters(), lr=self.lr)
+        value_opt = torch.optim.Adam(self.valuenet.parameters(), lr=self.lr)
+        policy_opt = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
+        context_opt = torch.optim.Adam(list(self.context_enc_mean.parameters()) + list(self.encoder.parameters()),
+                                       lr=self.lr)
+        return [q1_opt, q2_opt, value_opt, policy_opt, context_opt]
 
     def train_dataloader(self):
         train_dataset = RewardTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
