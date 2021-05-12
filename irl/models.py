@@ -814,7 +814,6 @@ class PEARL(pl.LightningModule):
         parser.add_argument('--filter', nargs='+', type=int, default=[3, 3, 3, 3])
         parser.add_argument('--strides', nargs='+', type=int, default=[2, 2, 2, 1])
         parser.add_argument('--process_data', type=int, default=0)
-        parser.add_argument('--target_update_interval', type=int, default=2)
         return parser
 
     def __init__(self, hparams):
