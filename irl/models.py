@@ -9,7 +9,8 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
 from atc.models import MlpModel, EncoderModel, ATCEncoder
-from irl.datasets import TransitionDataset, TestTransitionDataset, RawTransitionDataset, TestRawTransitionDataset
+from irl.datasets import TransitionDataset, TestTransitionDataset, RawTransitionDataset, TestRawTransitionDataset, \
+    RewardTransitionDataset
 
 
 class TransformerModel(torch.nn.Module):
@@ -688,7 +689,7 @@ class ContextAIL(pl.LightningModule):
             policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             entropy = torch.mean(policy_dist.entropy())
             nll = torch.mean(-policy_dist.log_prob(test_actions))
-            gen_loss = torch.mean(torch.log(pos_disc+1e-8)) - self.beta * entropy
+            gen_loss = torch.mean(torch.log(pos_disc + 1e-8)) - self.beta * entropy
             mse_loss = F.mse_loss(test_actions, test_actions_pred)
 
             self.log('gen_loss', gen_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -761,7 +762,7 @@ class ContextAIL(pl.LightningModule):
             list(self.discriminator.parameters()) + list(self.generator.encoder.parameters()) + list(
                 self.generator.context_enc_mean.parameters()), lr=self.lr)
         gen_optim = torch.optim.Adam(list(self.generator.policy_std.parameters()) + list(
-                self.generator.policy_mean.parameters()), lr=self.lr)
+            self.generator.policy_mean.parameters()), lr=self.lr)
         return [disc_optim, gen_optim]
 
     def train_dataloader(self):
@@ -795,19 +796,24 @@ class ContextAIL(pl.LightningModule):
         return test_dataloaders
 
 
-class IRLNoDynamics(pl.LightningModule):
+class PEARL(pl.LightningModule):
 
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument('--lr', type=float, default=1e-4)
-        parser.add_argument('--latent_size', type=int, default=128)
-        parser.add_argument('--anchor_size', type=int, default=256)
+        parser.add_argument('--state_dim', type=int, default=128)
+        parser.add_argument('--action_dim', type=int, default=2)
+        parser.add_argument('--beta', type=float, default=0.001)
+        parser.add_argument('--gamma', type=float, default=0.0)
+        parser.add_argument('--context_dim', nargs='+', type=int, default=32)
+        parser.add_argument('--dropout', type=float, default=0.2)
+        parser.add_argument('--size', type=int, default=84)
         parser.add_argument('--channels', nargs='+', type=int, default=[32, 32, 32, 32])
         parser.add_argument('--filter', nargs='+', type=int, default=[3, 3, 3, 3])
         parser.add_argument('--strides', nargs='+', type=int, default=[2, 2, 2, 1])
-        parser.add_argument('--target_update_interval', type=int, default=1)
-        parser.add_argument('--target_update_tau', type=float, default=0.01)
+        parser.add_argument('--process_data', type=int, default=0)
+
         return parser
 
     def __init__(self, hparams):
@@ -817,80 +823,176 @@ class IRLNoDynamics(pl.LightningModule):
         self.lr = self.hparams.lr
         self.state_dim = self.hparams.state_dim
         self.action_dim = self.hparams.action_dim
-        self.context_dim = self.hparams.action_dim
+        self.context_dim = self.hparams.context_dim
         self.beta = self.hparams.beta
+        self.gamma = self.hparams.gamma
+        self.dropout = self.hparams.dropout
 
-        self.context_enc_mean = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
+        self.encoder = ATCEncoder.load_from_checkpoint(
+            '/data/kvg245/bib-tom/lightning_logs/version_911764/checkpoints/epoch=31-step=342118.ckpt')
+        self.context_enc_mean = MlpModel(self.state_dim * 2 + self.action_dim + 1, hidden_sizes=[128, 64, 128],
                                          output_size=self.context_dim)
-        self.context_enc_std = MlpModel(self.state_dim + self.action_dim, hidden_sizes=[64, 64],
-                                        output_size=self.context_dim)
 
-        self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[64, 64],
-                               output_size=self.action_dim)
+        self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
+                               output_size=self.action_dim, dropout=self.dropout)
 
-        self.r = MlpModel(input_size=self.state_dim + self.context_dim + self.action_dim, hidden_sizes=[64, 32],
-                          output_size=1)
+        self.qnet = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
+                             hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
 
-        self.past_samples = []
+    def forward(self, batch):
+        dem_frames, dem_actions, dem_next_frames, dem_r, test_frames, test_actions, test_next_frames, test_r = batch
 
-    def training_step(self, batch, batch_idx):
-        dem_states, dem_actions, test_states, test_actions, dem_l, test_l, test_mask = batch
+        dem_states, _ = self.generator.encoder.encoder(dem_frames)
+        test_states, _ = self.generator.encoder.encoder(test_frames)
+        dem_next_states, _ = self.generator.encoder.encoder(dem_next_frames)
+        test_next_states, _ = self.generator.encoder.encoder(test_next_frames)
 
         # concatenate states and actions to get expert trajectory
         dem_traj = torch.cat([dem_states, dem_actions], dim=2)
 
         # embed expert trajectory to get a context embedding batch x samples x dim
-        context_mean_samples = self.context_enc_mean(dem_traj)
-        context_std_samples = self.context_enc_std(dem_traj)
+        context_mean_samples = self.generator.context_enc_mean(dem_traj)
 
         # combine contexts of each meta episode
-        context_std_squared = torch.clamp(context_std_samples * context_std_samples, min=1e-7)
-        context_std_squared = 1. / torch.sum(torch.reciprocal(context_std_squared), dim=1)
-        context_mean = context_std_squared * torch.sum(context_mean_samples / context_std_squared, dim=1)
-        context_std = torch.sqrt(context_std_squared)
-
-        # sample context variable
-        context_dist = torch.distributions.normal.Normal(context_mean, context_std)
-        prior_dist = torch.distributions.Normal(torch.zeros_like(context_mean), torch.ones_like(context_std))
-
-        context = torch.normal(context_mean, context_std)
+        context = torch.mean(context_mean_samples, dim=1)
 
         # concat context embedding to the state embedding of test trajectory
-        test_context_states = torch.cat([context, test_states], dim=1)
-        test_context_states_actions = torch.cat([context, test_states, test_actions], dim=1)
+        test_context_states = torch.cat([context.unsqueeze(1), test_states], dim=2)
+        b, s, d = test_context_states.size()
+        test_context_states = test_context_states.view(b * s, d)
+        test_actions = test_actions.view(b * s, -1)
 
         # for each state in the test states calculate action
-        test_actions_pred = F.softmax(self.policy(test_context_states), dim=1)
-        test_context_states_actions_pred = torch.cat([context, test_states, test_actions_pred], dim=1)
+        test_actions_pred_mu = torch.tanh(self.policy_mean(test_context_states))
+        test_actions_pred_sig = torch.sigmoid(self.policy_std(test_context_states))
 
-        # calculate policy likelihood loss for imitation
-        imitation_loss = - torch.log(test_context_states_actions_pred + 1e-8) * test_actions
-        kl_loss = context_dist.log_prob(context) - prior_dist.log_prob(context)
-        loss = imitation_loss + self.beta * kl_loss
+        return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context
 
-        # calculate the score of the expert trajectory using current policy
-        # test_actions_expert_score = test_actions * test_actions_pred
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        if optimizer_idx == 0:
+            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
+                batch)
+            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+            test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
+            test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+            neg_disc = self.discriminator(test_context_states_actions)
+            pos_disc = self.discriminator(test_context_states_actions_pred)
+            disc_loss = - torch.mean(torch.log(pos_disc + 1e-8)) - torch.mean(torch.log(1 - neg_disc + 1e-8))
+            self.log('disc_loss', disc_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            return disc_loss
 
-        # calculate the reward for each context, state, action that is observed
-        # test_reward_expert = self.r(test_context_states_actions)
-        # test_reward_pred = self.r(test_context_states_actions_pred)
+        elif optimizer_idx == 1:
+            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
+                batch)
+            test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+            test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+            pos_disc = self.discriminator(test_context_states_actions_pred)
 
-        # calculate adversarial loss
-        # discriminator_expert_numerator = torch.exp(test_reward_expert)
-        # discriminator_expert_denominator = torch.exp(test_reward_expert) + test_actions_expert_score
-        # discriminator_pred_numerator = torch.exp(test_reward_pred)
-        # discriminator_pred_denominator = torch.exp(test_reward_pred) + test_actions_pred
-        # discriminator_loss = torch.log(discriminator_pred_numerator) - torch.log(
-        #     discriminator_pred_denominator) + torch.log(discriminator_expert_denominator) - torch.log(
-        #     discriminator_expert_numerator)
+            policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+            entropy = torch.mean(policy_dist.entropy())
+            nll = torch.mean(-policy_dist.log_prob(test_actions))
+            gen_loss = torch.mean(torch.log(pos_disc + 1e-8)) - self.beta * entropy
+            mse_loss = F.mse_loss(test_actions, test_actions_pred)
 
-        # calculate info loss; used to calculate gradients for context encoder
-        # context_log_prob = context_dist.log_prob(context)
-        # info_loss = - context_log_prob
+            self.log('gen_loss', gen_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('mse_loss', mse_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('nll', nll, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('entropy', entropy, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            return gen_loss
 
-        # calculate info loss reward; used to calculate gradients for reward
-        # info_loss_reward = context_log_prob * test_reward_pred - context_log_prob * torch.mean(test_reward_pred, dim=1)
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
+        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context = self.generator(
+            batch)
+        test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+        test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
+        test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+        neg_disc = self.discriminator(test_context_states_actions)
+        pos_disc = self.discriminator(test_context_states_actions_pred)
+        disc_loss = torch.mean(torch.log(pos_disc + 1e-8)) + torch.mean(torch.log(1 - neg_disc + 1e-8))
+        policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+        entropy = torch.mean(policy_dist.entropy())
+        nll = torch.mean(-policy_dist.log_prob(test_actions))
+        gen_loss = - torch.mean(pos_disc) - self.beta * entropy
+        mse_loss = F.mse_loss(test_actions, test_actions_pred)
 
-        # log metrics and optimize steps
+        self.log('val_mse_loss', mse_loss, on_epoch=True, logger=True)
+        self.log('val_loss', gen_loss, on_epoch=True, logger=True)
+        self.log('val_disc', disc_loss, on_epoch=True, logger=True)
+        self.log('val_nll', nll, on_epoch=True, logger=True)
+        self.log('val_entropy', entropy, on_epoch=True, logger=True)
 
-        # add policy optimization
+    def test_step(self, batch, batch_idx):
+        fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
+        fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions = batch
+
+        surprise_expected = []
+        for i in range(test_expected_states.size(1)):
+            test_actions, test_actions_pred = self.forward(
+                [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :, :, :].unsqueeze(1),
+                 test_expected_actions[:, i, :].unsqueeze(1)])
+            loss = F.mse_loss(test_actions, test_actions_pred)
+            surprise_expected.append(loss.cpu().numpy())
+
+        mean_expected_surprise = np.mean(surprise_expected)
+        max_expected_surprise = np.max(surprise_expected)
+
+        surprise_unexpected = []
+        for i in range(test_unexpected_states.size(1)):
+            test_actions, test_actions_pred = self.forward(
+                [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :, :, :].unsqueeze(1),
+                 test_unexpected_actions[:, i, :].unsqueeze(1)])
+
+            loss = F.mse_loss(test_actions, test_actions_pred)
+            surprise_unexpected.append(loss.cpu().numpy())
+
+        mean_unexpected_surprise = np.mean(surprise_unexpected)
+        max_unexpected_surprise = np.max(surprise_unexpected)
+
+        correct_mean = mean_expected_surprise < mean_unexpected_surprise + 0.5 * (
+                mean_expected_surprise == mean_unexpected_surprise)
+        correct_max = max_expected_surprise < max_unexpected_surprise + 0.5 * (
+                max_expected_surprise == max_unexpected_surprise)
+        self.log('test_expected_surprise', mean_expected_surprise, on_epoch=True, logger=True)
+        self.log('test_unexpected_surprise', mean_unexpected_surprise, prog_bar=True, logger=True)
+        self.log('test_expected_surprisem', max_expected_surprise, on_epoch=True, logger=True)
+        self.log('test_unexpected_surprisem', max_unexpected_surprise, prog_bar=True, logger=True)
+        self.log('accuracy_mean', correct_mean, prog_bar=True, logger=True)
+        self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
+
+    def configure_optimizers(self):
+        disc_optim = torch.optim.Adam(
+            list(self.discriminator.parameters()) + list(self.generator.encoder.parameters()) + list(
+                self.generator.context_enc_mean.parameters()), lr=self.lr)
+        gen_optim = torch.optim.Adam(list(self.generator.policy_std.parameters()) + list(
+            self.generator.policy_mean.parameters()), lr=self.lr)
+        return [disc_optim, gen_optim]
+
+    def train_dataloader(self):
+        train_dataset = RewardTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
+                                                process_data=self.hparams.process_data,
+                                                size=(self.hparams.size, self.hparams.size))
+        train_loader = DataLoader(dataset=train_dataset, batch_size=self.hparams.batch_size,
+                                  num_workers=self.hparams.num_workers, pin_memory=True, shuffle=True)
+        return train_loader
+
+    def val_dataloader(self):
+        val_datasets = []
+        val_loaders = []
+        for t in self.hparams.types:
+            val_datasets.append(RewardTransitionDataset(self.hparams.data_path, types=[t], mode='val',
+                                                        process_data=self.hparams.process_data,
+                                                        size=(self.hparams.size, self.hparams.size)))
+            val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=self.hparams.batch_size,
+                                          num_workers=self.hparams.num_workers, pin_memory=True, shuffle=False))
+        return val_loaders
+
+    def test_dataloader(self):
+        test_datasets = []
+        test_dataloaders = []
+        for t in self.hparams.types:
+            test_datasets.append(
+                TestRawTransitionDataset(self.hparams.data_path, types=t, process_data=self.hparams.process_data,
+                                         size=(self.hparams.size, self.hparams.size)))
+            test_dataloaders.append(
+                DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
+        return test_dataloaders
