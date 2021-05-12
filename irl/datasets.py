@@ -416,7 +416,7 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
                         action = [dx, dy]
                         # action = ACTION_LIST.index([dx, dy])
                         self.data_expected[-1].append((v, past_len + f, action))
-                    print(len(self.data_expected[-1]))
+                    print(len(self.data_expected[-1]), past_len)
                     assert len(self.data_expected[-1]) > 0
                     past_len += l
 
