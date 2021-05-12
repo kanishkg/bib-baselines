@@ -416,8 +416,8 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
                         action = [dx, dy]
                         # action = ACTION_LIST.index([dx, dy])
                         self.data_expected[-1].append((v, past_len + f, action))
-                        assert past_len+f < sum(ep_lens)
-                    print(len(self.data_expected[-1]), past_len)
+                        assert past_len+f < sum(ep_lens), f'greater than video len {v}, {past_len}, {f}'
+                    print(len(self.data_expected[-1]))
                     assert len(self.data_expected[-1]) > 0
                     past_len += l
 
@@ -444,8 +444,10 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
                         action = [dx, dy]
                         # action = ACTION_LIST.index([dx, dy])
                         self.data_unexpected[-1].append((v, past_len + f, action))
+                        assert past_len+f < sum(ep_lens), f'greater than video len {v}, {past_len}, {f}'
+
                     print(len(self.data_unexpected[-1]))
-                    assert len(self.data_unexpected[-1]) > 0, f'greater than video len {v}, {past_len}, {f}'
+                    assert len(self.data_unexpected[-1]) > 0
                     past_len += l
 
             index_dict = {'data_tuples': self.data_unexpected}
