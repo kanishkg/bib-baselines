@@ -596,11 +596,11 @@ class RewardTransitionDataset(torch.utils.data.Dataset):
                     past_len += l
 
             index_dict = {'data_tuples': self.data_tuples}
-            with open(os.path.join(self.path, f'index_bib_{mode}_{types_str}.json'), 'w') as fp:
+            with open(os.path.join(self.path, f'index_bib_{mode}_{types_str}_r.json'), 'w') as fp:
                 json.dump(index_dict, fp)
 
         else:
-            with open(os.path.join(self.path, f'index_bib_{mode}_{types_str}.json'), 'r') as fp:
+            with open(os.path.join(self.path, f'index_bib_{mode}_{types_str}_r.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_tuples = index_dict['data_tuples']
 
