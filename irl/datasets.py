@@ -574,7 +574,7 @@ class RewardTransitionDataset(torch.utils.data.Dataset):
                     # skip first 30 frames and last 83 frames
                     fx, fy = state[e][-1]['agent'][0]
                     if len(state[e][-1]['objects']) == 1:
-                        gx, gy = state[e][-1]['objects'][0]
+                        gx, gy = state[e][-1]['objects'][0][0]
                     else:
                         min_dist = 10000
                         gx, gy = -1, -1
