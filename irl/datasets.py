@@ -378,14 +378,14 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
         self.json_list_un = []
 
         print(f'reading files of type {types} in {mode}')
-        paths_expected = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                 x.endswith(f'{types}e.mp4')]
-        jsons_expected = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                 x.endswith(f'{types}e.json') and 'index' not in x]
-        paths_unexpected = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                 x.endswith(f'{types}u.mp4')]
-        jsons_unexpected = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                 x.endswith(f'{types}u.json') and 'index' not in x]
+        paths_expected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
+                 x.endswith(f'{types}e.mp4')])
+        jsons_expected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
+                 x.endswith(f'{types}e.json') and 'index' not in x])
+        paths_unexpected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
+                 x.endswith(f'{types}u.mp4')])
+        jsons_unexpected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
+                 x.endswith(f'{types}u.json') and 'index' not in x])
 
 
         self.path_list_exp += paths_expected
