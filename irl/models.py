@@ -828,9 +828,6 @@ class PEARL(pl.LightningModule):
         self.beta = self.hparams.beta
         self.gamma = self.hparams.gamma
         self.dropout = self.hparams.dropout
-        self.target_update_interval = self.hparams.target_update_interval
-        self.done = None
-        self.target_value = None
 
         self.encoder = ATCEncoder.load_from_checkpoint(
             '/data/kvg245/bib-tom/lightning_logs/version_911764/checkpoints/epoch=31-step=342118.ckpt')
