@@ -372,11 +372,86 @@ class TestRawTransitionDataset(torch.utils.data.Dataset):
         self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
         self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
 
-        self.path_list = []
-        self.json_list = []
+        self.path_list_exp = []
+        self.json_list_exp = []
+        self.path_list_un = []
+        self.json_list_un = []
 
+        for t in types:
+            print(f'reading files of type {t} in {mode}')
+            paths_expected = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}e.mp4')]
+            jsons_expected = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}e.json') and 'index' not in x]
+            paths_unexpected = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}u.mp4')]
+            jsons_unexpected = [os.path.join(self.path, x) for x in os.listdir(self.path) if
+                     x.endswith(f'{t}u.json') and 'index' not in x]
+
+
+        self.path_list_exp += paths_expected
+        self.json_list_exp += jsons_expected
+        self.path_list_un += paths_unexpected
+        self.json_list_un += jsons_unexpected
+
+        self.data_unexpected = []
+        self.data_expected = []
         if process_data:
-            raise NotImplementedError
+
+            print(f'processing files {len(self.json_list_exp)}')
+            for j, v in zip(self.json_list_exp, self.path_list_exp):
+                print(j)
+                with open(j, 'r') as f:
+                    state = json.load(f)
+                ep_lens = [len(x) for x in state]
+                past_len = 0
+                for e, l in enumerate(ep_lens):
+                    self.data_expected.append([])
+                    # skip first 30 frames and last 83 frames
+                    for f in range(30, l - 83):
+                        # find action taken; this calculation is approximate
+                        f0x, f0y = state[e][f]['agent'][0]
+                        f1x, f1y = state[e][f + 1]['agent'][0]
+                        dx = (f1x - f0x) / 2.
+                        dy = (f1y - f0y) / 2.
+                        action = [dx, dy]
+                        # action = ACTION_LIST.index([dx, dy])
+                        self.data_expected[-1].append((v, past_len + f, action))
+                    print(len(self.data_expected[-1]))
+                    assert len(self.data_expected[-1]) > 0
+                    past_len += l
+
+            index_dict = {'data_tuples': self.data_expected}
+            with open(os.path.join(self.path, f'index_bib_test_{types}e.json'), 'w') as fp:
+                json.dump(index_dict, fp)
+
+            print(f'processing files {len(self.json_list_un)}')
+            for j, v in zip(self.json_list_un, self.path_list_un):
+                print(j)
+                with open(j, 'r') as f:
+                    state = json.load(f)
+                ep_lens = [len(x) for x in state]
+                past_len = 0
+                for e, l in enumerate(ep_lens):
+                    self.data_unexpected.append([])
+                    # skip first 30 frames and last 83 frames
+                    for f in range(30, l - 83):
+                        # find action taken; this calculation is approximate
+                        f0x, f0y = state[e][f]['agent'][0]
+                        f1x, f1y = state[e][f + 1]['agent'][0]
+                        dx = (f1x - f0x) / 2.
+                        dy = (f1y - f0y) / 2.
+                        action = [dx, dy]
+                        # action = ACTION_LIST.index([dx, dy])
+                        self.data_unexpected[-1].append((v, past_len + f, action))
+                    print(len(self.data_unexpected[-1]))
+                    assert len(self.data_unexpected[-1]) > 0
+                    past_len += l
+
+            index_dict = {'data_tuples': self.data_unexpected}
+            with open(os.path.join(self.path, f'index_bib_test_{types}u.json'), 'w') as fp:
+                json.dump(index_dict, fp)
+
         else:
 
             with open(os.path.join(self.path, f'index_bib_test_{types}e.json'), 'r') as fp:
