@@ -960,6 +960,8 @@ class PEARL(pl.LightningModule):
         test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
         predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
                                 self.softqnet2(test_context_states_actions_pred))
+        print(predicted_q.size())
+        print(policy_dist.log_prob(test_actions_pred).size())
         target_value_func = predicted_q - policy_dist.log_prob(test_actions_pred)
 
         value_loss = F.mse_loss(predicted_value, target_value_func.detach())
