@@ -851,6 +851,15 @@ class PEARL(pl.LightningModule):
     def forward(self, batch):
         dem_frames, dem_actions, dem_next_frames, dem_r, test_frames, test_actions, test_next_frames, test_r, done = batch
 
+        dem_frames = dem_frames.float()
+        dem_actions = dem_actions.float()
+        dem_next_frames = dem_next_frames.float()
+        dem_r = dem_r.float()
+        test_actions = test_actions.float()
+        test_frames = test_frames.float()
+        test_next_frames = test_next_frames.float()
+        test_r = test_r.float()
+
         dem_states, _ = self.encoder.encoder(dem_frames)
         test_states, _ = self.encoder.encoder(test_frames)
         dem_next_states, _ = self.encoder.encoder(dem_next_frames)
