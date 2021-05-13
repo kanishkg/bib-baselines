@@ -638,17 +638,20 @@ class RewardTransitionDataset(torch.utils.data.Dataset):
         for t, n in trial_len[:num_transitions]:
             video = self.data_tuples[t][n][0]
             states.append(self._get_frame(video, self.data_tuples[t][n][1]))
-            next_states.append(self._get_frame(video, self.data_tuples[t][n + self.action_range][1]))
 
             goal_location = self.data_tuples[t][0][3]
             if len(self.data_tuples[t]) > n + self.action_range:
                 actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
                 final_location = self.data_tuples[t][n + self.action_range][4]
                 done.append(0.)
+                next_states.append(self._get_frame(video, self.data_tuples[t][n + self.action_range][1]))
+
             else:
                 actions_xy = [d[2] for d in self.data_tuples[t][n:]]
                 final_location = self.data_tuples[t][-1][4]
                 done.append(1.)
+                next_states.append(self._get_frame(video, self.data_tuples[t][-1][1]))
+
             distance_goal = ((goal_location[0] - final_location[0]) ** 2 + (
                     goal_location[1] - final_location[1]) ** 2) ** 0.5
             if distance_goal < 20:
