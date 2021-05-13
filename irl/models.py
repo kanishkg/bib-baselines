@@ -819,7 +819,6 @@ class PEARL(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
-        self.automatic_optimization = False
 
         self.lr = self.hparams.lr
         self.state_dim = self.hparams.state_dim
@@ -849,6 +848,8 @@ class PEARL(pl.LightningModule):
 
         self.valuenet = MlpModel(input_size=self.state_dim + self.context_dim,
                                  hidden_sizes=[256, 128, 256], output_size=1, dropout=self.dropout)
+
+        self.automatic_optimization = False
 
     def forward(self, batch):
         dem_frames, dem_actions, dem_next_frames, dem_r, test_frames, test_actions, test_next_frames, test_r, done = batch
@@ -923,7 +924,7 @@ class PEARL(pl.LightningModule):
         test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
         predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
                                 self.softqnet2(test_context_states_actions_pred))
-        target_value_func = predicted_q - policy_dist.log_prob(test_actions_pred)
+        target_value_func = predicted_q - torch.sum(policy_dist.log_prob(test_actions_pred))
 
         opt[2].zero_grad()
         value_loss = F.mse_loss(predicted_value, target_value_func.detach())
@@ -932,7 +933,7 @@ class PEARL(pl.LightningModule):
         opt[2].step()
 
         opt[3].zero_grad()
-        policy_loss = torch.mean(policy_dist.log_prob(test_actions_pred) - predicted_q)
+        policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
         self.log('policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.manual_backward(policy_loss)
         opt[3].step()
@@ -960,13 +961,11 @@ class PEARL(pl.LightningModule):
         test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
         predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
                                 self.softqnet2(test_context_states_actions_pred))
-        print(predicted_q.size())
-        print(policy_dist.log_prob(test_actions_pred).size())
-        target_value_func = predicted_q - policy_dist.log_prob(test_actions_pred)
+        target_value_func = predicted_q - torch.sum(policy_dist.log_prob(test_actions_pred))
 
         value_loss = F.mse_loss(predicted_value, target_value_func.detach())
 
-        policy_loss = torch.mean(policy_dist.log_prob(test_actions_pred) - predicted_q)
+        policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
 
         self.log('val_q1loss', q1loss, on_epoch=True, logger=True)
         self.log('val_q2loss', q2loss, on_epoch=True, logger=True)
@@ -1018,7 +1017,7 @@ class PEARL(pl.LightningModule):
         policy_opt = torch.optim.Adam(list(self.policy_std.parameters()) + list(self.policy_mean.parameters()), lr=self.lr)
         context_opt = torch.optim.Adam(list(self.context_enc_mean.parameters()) + list(self.encoder.parameters()),
                                        lr=self.lr)
-        return [q1_opt, q2_opt, value_opt, policy_opt, context_opt]
+        return q1_opt, q2_opt, value_opt, policy_opt, context_opt
 
     def train_dataloader(self):
         train_dataset = RewardTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
