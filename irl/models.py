@@ -1013,7 +1013,7 @@ class PEARL(pl.LightningModule):
         q1_opt = torch.optim.Adam(self.softqnet1.parameters(), lr=self.lr)
         q2_opt = torch.optim.Adam(self.softqnet2.parameters(), lr=self.lr)
         value_opt = torch.optim.Adam(self.valuenet.parameters(), lr=self.lr)
-        policy_opt = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
+        policy_opt = torch.optim.Adam(list(self.policy_std.parameters()) + list(self.policy_mean.parameters()), lr=self.lr)
         context_opt = torch.optim.Adam(list(self.context_enc_mean.parameters()) + list(self.encoder.parameters()),
                                        lr=self.lr)
         return [q1_opt, q2_opt, value_opt, policy_opt, context_opt]
