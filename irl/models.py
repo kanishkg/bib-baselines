@@ -857,7 +857,7 @@ class PEARL(pl.LightningModule):
         test_next_states, _ = self.encoder.encoder(test_next_frames)
 
         # concatenate states and actions to get expert trajectory
-        dem_traj = torch.cat([dem_states, dem_actions, dem_next_states, dem_r], dim=2)
+        dem_traj = torch.cat([dem_states, dem_actions, dem_next_states, dem_r.unsqueeze(2)], dim=2)
 
         # embed expert trajectory to get a context embedding batch x samples x dim
         context_mean_samples = self.generator.context_enc_mean(dem_traj)
