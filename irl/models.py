@@ -834,7 +834,9 @@ class PEARL(pl.LightningModule):
         self.context_enc_mean = MlpModel(self.state_dim * 2 + self.action_dim + 1, hidden_sizes=[128, 64, 128],
                                          output_size=self.context_dim)
 
-        self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
+        self.policy_mean = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
+                               output_size=self.action_dim, dropout=self.dropout)
+        self.policy_std = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
                                output_size=self.action_dim, dropout=self.dropout)
 
         self.softqnet1 = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
