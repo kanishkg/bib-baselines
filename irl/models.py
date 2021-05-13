@@ -851,10 +851,10 @@ class PEARL(pl.LightningModule):
     def forward(self, batch):
         dem_frames, dem_actions, dem_next_frames, dem_r, test_frames, test_actions, test_next_frames, test_r, done = batch
 
-        dem_states, _ = self.generator.encoder.encoder(dem_frames)
-        test_states, _ = self.generator.encoder.encoder(test_frames)
-        dem_next_states, _ = self.generator.encoder.encoder(dem_next_frames)
-        test_next_states, _ = self.generator.encoder.encoder(test_next_frames)
+        dem_states, _ = self.encoder.encoder(dem_frames)
+        test_states, _ = self.encoder.encoder(test_frames)
+        dem_next_states, _ = self.encoder.encoder(dem_next_frames)
+        test_next_states, _ = self.encoder.encoder(test_next_frames)
 
         # concatenate states and actions to get expert trajectory
         dem_traj = torch.cat([dem_states, dem_actions, dem_next_states, dem_r], dim=2)
