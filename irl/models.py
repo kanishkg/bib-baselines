@@ -860,7 +860,7 @@ class PEARL(pl.LightningModule):
         dem_traj = torch.cat([dem_states, dem_actions, dem_next_states, dem_r.unsqueeze(2)], dim=2)
 
         # embed expert trajectory to get a context embedding batch x samples x dim
-        context_mean_samples = self.generator.context_enc_mean(dem_traj)
+        context_mean_samples = self.context_enc_mean(dem_traj)
 
         # combine contexts of each meta episode
         context = torch.mean(context_mean_samples, dim=1)
