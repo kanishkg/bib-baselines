@@ -909,16 +909,18 @@ class PEARL(pl.LightningModule):
         target_value = self.valuenet_target(test_context_states)
         target_q_value = test_r + (1 - done) * self.gamma * target_value
 
-        opt[0].zero_grad()
         q1loss = F.mse_loss(q1, target_q_value.detach())
         self.log('q1loss', q1loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.manual_backward(q1loss, opt[0])
+
+        opt[0].zero_grad()
+        self.manual_backward(q1loss)
         opt[0].step()
 
-        opt[1].zero_grad()
         q2loss = F.mse_loss(self.q2, target_q_value.detach())
         self.log('q2loss', q2loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.manual_backward(q2loss, opt[1])
+
+        opt[1].zero_grad()
+        self.manual_backward(q2loss)
         opt[1].step()
 
         test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
@@ -926,21 +928,23 @@ class PEARL(pl.LightningModule):
                                 self.softqnet2(test_context_states_actions_pred))
         target_value_func = predicted_q - torch.sum(policy_dist.log_prob(test_actions_pred))
 
-        opt[2].zero_grad()
         value_loss = F.mse_loss(predicted_value, target_value_func.detach())
         self.log('value_loss', value_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.manual_backward(value_loss, opt[2])
+
+        opt[2].zero_grad()
+        self.manual_backward(value_loss)
         opt[2].step()
 
-        opt[3].zero_grad()
         policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
         self.log('policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.manual_backward(policy_loss, opt[3])
+
+        opt[3].zero_grad()
+        self.manual_backward(policy_loss)
         opt[3].step()
 
-        opt[4].zero_grad()
         context_loss = q1loss + q2loss
-        self.manual_backward(context_loss, opt[4])
+        opt[4].zero_grad()
+        self.manual_backward(context_loss)
         opt[4].step()
 
         update_state_dict(self.valuenet_target, self.valuenet.state_dict(), 1)
