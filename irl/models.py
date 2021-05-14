@@ -891,7 +891,7 @@ class PEARL(pl.LightningModule):
 
         test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
         q1 = self.softqnet1(test_context_states_actions)
-        q2 = self.softqnet2(test_context_states_actions)
+        q2 = self.softqnet2(test_context_states_actions.clone())
         value = self.valuenet(test_context_states)
         return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, q1, q2, value, \
                test_r, done
