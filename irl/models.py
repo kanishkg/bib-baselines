@@ -909,9 +909,8 @@ class OfflineRL(pl.LightningModule):
             test_r, done = self.forward(batch)
             prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             actions_20 = prior_dist.sample_n(20)
-            print(actions_20.size())
+            actions_20 = actions_20.permute(1, 0, 2)
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
-            print(test_context_states_20.size())
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = torch.mean(self.qnet_target(test_context_states_actions_20), dim=2)
             target_q_value = test_r + (1 - done) * self.gamma * target_value
@@ -926,6 +925,7 @@ class OfflineRL(pl.LightningModule):
             test_r, done = self.forward(batch)
             prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             actions_20 = prior_dist.sample_n(20)
+            actions_20 = actions_20.permute(1, 0, 2)
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
@@ -939,6 +939,7 @@ class OfflineRL(pl.LightningModule):
             test_r, done = self.forward(batch)
             prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             actions_20 = prior_dist.sample_n(20)
+            actions_20 = actions_20.permute(1, 0, 2)
 
             test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
             test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
@@ -966,6 +967,7 @@ class OfflineRL(pl.LightningModule):
             test_r, done = self.forward(batch)
             prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             actions_20 = prior_dist.sample_n(20)
+            actions_20 = actions_20.permute(1, 0, 2)
 
             test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
             test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
