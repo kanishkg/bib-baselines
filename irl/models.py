@@ -924,17 +924,12 @@ class OfflineRL(pl.LightningModule):
             test_r, done = self.forward(batch)
             prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             actions_20 = prior_dist.sample_n(20)
-
-            test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
-            test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
-            policy_dist = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
-
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
-            self.eta = torch.clamp(self.eta, min=0.001)
-            self.alpha = torch.clamp(self.alpha, min=0.001)
-            loss = torch.sum(self.eta * (self.eps + torch.log(torch.mean(torch.exp(target_value / self.eta), dim=1))))
+            eta = torch.sigmoid(self.eta)
+
+            loss = torch.sum(eta * (self.eps + torch.log(torch.mean(torch.exp(target_value / eta), dim=1))))
             self.log('eta_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return loss
 
@@ -951,14 +946,14 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
-            self.eta = torch.clamp(self.eta, min=0.001)
-            self.alpha = torch.clamp(self.alpha, min=0.001)
+            eta = torch.sigmoid(self.eta)
+            alpha = torch.sigmoid(self.alpha)
 
             if self.policy_dist_old == None:
                 self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
             loss = -torch.mean(
-                torch.sum(torch.exp(target_value / self.eta) * policy_dist.log_prob(actions_20), dim=1) + self.alpha * (
+                torch.sum(torch.exp(target_value / eta) * policy_dist.log_prob(actions_20), dim=1) + alpha * (
                         self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
             self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu.detach(),
@@ -978,10 +973,11 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
-            self.eta = torch.clamp(self.eta, min=0.001)
-            self.alpha = torch.clamp(self.alpha, min=0.001)
+            eta = torch.sigmoid(self.eta)
+            alpha = torch.sigmoid(self.alpha)
+
             loss = torch.mean(
-                torch.sum(torch.exp(target_value / self.eta) * policy_dist.log_prob(actions_20), dim=1) + self.alpha * (
+                torch.sum(torch.exp(target_value / eta) * policy_dist.log_prob(actions_20), dim=1) + alpha * (
                         self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
             self.log('alpha_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             if batch_idx % 100 == 0:
