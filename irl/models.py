@@ -913,14 +913,14 @@ class PEARL(pl.LightningModule):
         self.log('q1loss', q1loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         opt[0].zero_grad()
-        self.manual_backward(q1loss)
+        q1loss.backward(retain_graph=True)
         opt[0].step()
 
         q2loss = F.mse_loss(q2, target_q_value.detach())
         self.log('q2loss', q2loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         opt[1].zero_grad()
-        self.manual_backward(q2loss)
+        q2loss.backward(retain_graph=True)
         opt[1].step()
 
         test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
@@ -932,19 +932,19 @@ class PEARL(pl.LightningModule):
         self.log('value_loss', value_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         opt[2].zero_grad()
-        self.manual_backward(value_loss)
+        value_loss.backward(retain_graph=True)
         opt[2].step()
 
         policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
         self.log('policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         opt[3].zero_grad()
-        self.manual_backward(policy_loss)
+        policy_loss.backward(retain_graph=True)
         opt[3].step()
 
         context_loss = q1loss + q2loss
         opt[4].zero_grad()
-        self.manual_backward(context_loss)
+        context_loss.backward()
         opt[4].step()
 
         update_state_dict(self.valuenet_target, self.valuenet.state_dict(), 1)
@@ -1052,8 +1052,3 @@ class PEARL(pl.LightningModule):
             test_dataloaders.append(
                 DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
         return test_dataloaders
-
-    def backward(self, use_amp, loss, optimizer, optimizer_idx):
-
-        # do a custom way of backward
-        loss.backward(retain_graph=True)
