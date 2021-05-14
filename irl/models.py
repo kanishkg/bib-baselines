@@ -1061,8 +1061,8 @@ class OfflineRL(pl.LightningModule):
         q_opt = torch.optim.Adam(self.qnet.parameters(), lr=self.lr)
         policy_opt = torch.optim.Adam(list(self.policy_std.parameters()) + list(self.policy_mean.parameters()),
                                       lr=self.lr)
-        eta_opt = torch.optim.Adam(self.eta, lr=self.lr)
-        alpha_opt = torch.optim.Adam(self.alpha, lr=self.lr)
+        eta_opt = torch.optim.Adam(self.eta.parameters(), lr=self.lr)
+        alpha_opt = torch.optim.Adam(self.alpha.parameters(), lr=self.lr)
 
         return [prior_opt, q_opt, eta_opt, policy_opt, alpha_opt]
 
