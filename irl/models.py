@@ -916,7 +916,7 @@ class PEARL(pl.LightningModule):
         self.manual_backward(q1loss)
         opt[0].step()
 
-        q2loss = F.mse_loss(self.q2, target_q_value.detach())
+        q2loss = F.mse_loss(q2, target_q_value.detach())
         self.log('q2loss', q2loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         opt[1].zero_grad()
