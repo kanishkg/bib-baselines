@@ -37,7 +37,7 @@ torch.manual_seed(args.seed)
 
 # init model
 model = PEARL(args)
-
+torch.autograd.set_detect_anomaly(True)
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
 
