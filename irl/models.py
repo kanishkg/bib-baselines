@@ -898,7 +898,7 @@ class PEARL(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, opt_idx):
 
-        opt = [self.optimizers()]
+        opt = self.optimizers()
 
         test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
         q1, q2, value, test_r, done = self.forward(batch)
@@ -912,13 +912,13 @@ class PEARL(pl.LightningModule):
         opt[0].zero_grad()
         q1loss = F.mse_loss(q1, target_q_value.detach())
         self.log('q1loss', q1loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.manual_backward(q1loss)
+        self.manual_backward(q1loss, opt[0])
         opt[0].step()
 
         opt[1].zero_grad()
         q2loss = F.mse_loss(self.q2, target_q_value.detach())
         self.log('q2loss', q2loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.manual_backward(q2loss)
+        self.manual_backward(q2loss, opt[1])
         opt[1].step()
 
         test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
@@ -929,18 +929,18 @@ class PEARL(pl.LightningModule):
         opt[2].zero_grad()
         value_loss = F.mse_loss(predicted_value, target_value_func.detach())
         self.log('value_loss', value_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.manual_backward(value_loss)
+        self.manual_backward(value_loss, opt[2])
         opt[2].step()
 
         opt[3].zero_grad()
         policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
         self.log('policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.manual_backward(policy_loss)
+        self.manual_backward(policy_loss, opt[3])
         opt[3].step()
 
         opt[4].zero_grad()
         context_loss = q1loss + q2loss
-        self.manual_backward(context_loss)
+        self.manual_backward(context_loss, opt[4])
         opt[4].step()
 
         update_state_dict(self.valuenet_target, self.valuenet.state_dict(), 1)
@@ -1017,7 +1017,7 @@ class PEARL(pl.LightningModule):
         policy_opt = torch.optim.Adam(list(self.policy_std.parameters()) + list(self.policy_mean.parameters()), lr=self.lr)
         context_opt = torch.optim.Adam(list(self.context_enc_mean.parameters()) + list(self.encoder.parameters()),
                                        lr=self.lr)
-        return q1_opt, q2_opt, value_opt, policy_opt, context_opt
+        return [q1_opt, q2_opt, value_opt, policy_opt, context_opt]
 
     def train_dataloader(self):
         train_dataset = RewardTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
