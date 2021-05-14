@@ -923,30 +923,30 @@ class PEARL(pl.LightningModule):
         # q2loss.backward(retain_graph=True)
         # opt[1].step()
 
-        test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-        # predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
-        #                         self.softqnet2(test_context_states_actions_pred))
-        predicted_q = self.softqnet1(test_context_states_actions_pred)
-        target_value_func = predicted_q - torch.sum(policy_dist.log_prob(test_actions_pred))
-
-        value_loss = F.mse_loss(predicted_value, target_value_func.detach())
-        self.log('value_loss', value_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
-        opt[1].zero_grad()
-        value_loss.backward(retain_graph=True)
-        opt[1].step()
-
-        policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
-        self.log('policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
-        opt[2].zero_grad()
-        policy_loss.backward(retain_graph=True)
-        opt[2].step()
-
-        context_loss = F.mse_loss(q1, target_q_value.detach())# q1loss # + q2loss
-        opt[3].zero_grad()
-        context_loss.backward()
-        opt[3].step()
+        # test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+        # # predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
+        # #                         self.softqnet2(test_context_states_actions_pred))
+        # predicted_q = self.softqnet1(test_context_states_actions_pred)
+        # target_value_func = predicted_q - torch.sum(policy_dist.log_prob(test_actions_pred))
+        #
+        # value_loss = F.mse_loss(predicted_value, target_value_func.detach())
+        # self.log('value_loss', value_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        #
+        # opt[1].zero_grad()
+        # value_loss.backward(retain_graph=True)
+        # opt[1].step()
+        #
+        # policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
+        # self.log('policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        #
+        # opt[2].zero_grad()
+        # policy_loss.backward(retain_graph=True)
+        # opt[2].step()
+        #
+        # context_loss = F.mse_loss(q1, target_q_value.detach())# q1loss # + q2loss
+        # opt[3].zero_grad()
+        # context_loss.backward()
+        # opt[3].step()
 
         update_state_dict(self.valuenet_target, self.valuenet.state_dict(), 1)
 
