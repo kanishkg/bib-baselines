@@ -1052,3 +1052,8 @@ class PEARL(pl.LightningModule):
             test_dataloaders.append(
                 DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
         return test_dataloaders
+
+    def backward(self, use_amp, loss, optimizer, optimizer_idx):
+
+        # do a custom way of backward
+        loss.backward(retain_graph=True)
