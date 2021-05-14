@@ -916,7 +916,7 @@ class OfflineRL(pl.LightningModule):
             target_q_value = test_r + (1 - done) * self.gamma * target_value
             test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
             qvalue = self.qnet(test_context_states_actions)
-            qloss = F.mse_loss(qvalue, target_q_value.detach())
+            qloss = F.mse_loss(qvalue, torch.mean(target_q_value.detach(), dim=1))
             self.log('q_loss', qloss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return qloss
 
