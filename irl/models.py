@@ -896,7 +896,7 @@ class PEARL(pl.LightningModule):
         return test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, q1, q2, value, \
                test_r, done
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, opt_idx):
 
         opt = [self.optimizers()]
 
