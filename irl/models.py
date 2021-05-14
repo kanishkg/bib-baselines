@@ -928,7 +928,6 @@ class OfflineRL(pl.LightningModule):
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
             eta = torch.sigmoid(self.eta)
-
             loss = torch.sum(eta * (self.eps + torch.log(torch.mean(torch.exp(target_value / eta), dim=1))))
             self.log('eta_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return loss
@@ -1057,8 +1056,8 @@ class OfflineRL(pl.LightningModule):
         q_opt = torch.optim.Adam(self.qnet.parameters(), lr=self.lr)
         policy_opt = torch.optim.Adam(list(self.policy_std.parameters()) + list(self.policy_mean.parameters()),
                                       lr=self.lr)
-        eta_opt = torch.optim.Adam(self.eta.parameters(), lr=self.lr)
-        alpha_opt = torch.optim.Adam(self.alpha.parameters(), lr=self.lr)
+        eta_opt = torch.optim.Adam([self.eta], lr=self.lr)
+        alpha_opt = torch.optim.Adam([self.alpha], lr=self.lr)
 
         return [prior_opt, q_opt, eta_opt, policy_opt, alpha_opt]
 
