@@ -992,7 +992,7 @@ class OfflineRL(pl.LightningModule):
                         self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
             self.log('alpha_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             if batch_idx % 100 == 0:
-                update_state_dict(self.qnet_target, self.qnet_target, 1)
+                update_state_dict(self.qnet_target, self.qnet.state_dict(), 1)
 
             return loss
 
