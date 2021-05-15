@@ -966,33 +966,33 @@ class OfflineRL(pl.LightningModule):
             test_actions_sig.detach())
             return loss
 
-    elif optimizer_idx == 4:
-    test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
-    test_r, done = self.forward(batch)
-    prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-    actions_20 = prior_dist.sample_n(20)
-    actions_20 = actions_20.permute(1, 0, 2)
+        elif optimizer_idx == 4:
+            test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
+            test_r, done = self.forward(batch)
+            prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+            actions_20 = prior_dist.sample_n(20)
+            actions_20 = actions_20.permute(1, 0, 2)
 
-    test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
-    test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
-    policy_dist = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
+            test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
+            test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
+            policy_dist = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
-    test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
-    test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
-    target_value = self.qnet_target(test_context_states_actions_20)
-    eta = torch.sigmoid(self.eta) * 3
-    alpha = torch.sigmoid(self.alpha)
-    b, s, z = actions_20.size()
-    log_prob = policy_dist.log_prob(actions_20.view(b * s, z))
-    log_prob = log_prob.view(b, s, z)
-    loss = torch.mean(
-        torch.sum(torch.exp(target_value / eta) * log_prob, dim=1) + alpha * (
-                self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
-    self.log('alpha_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-    if batch_idx % 100 == 0:
-        update_state_dict(self.qnet_target, self.qnet_target, 1)
+            test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
+            test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
+            target_value = self.qnet_target(test_context_states_actions_20)
+            eta = torch.sigmoid(self.eta) * 3
+            alpha = torch.sigmoid(self.alpha)
+            b, s, z = actions_20.size()
+            log_prob = policy_dist.log_prob(actions_20.view(b * s, z))
+            log_prob = log_prob.view(b, s, z)
+            loss = torch.mean(
+                torch.sum(torch.exp(target_value / eta) * log_prob, dim=1) + alpha * (
+                        self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
+            self.log('alpha_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            if batch_idx % 100 == 0:
+                update_state_dict(self.qnet_target, self.qnet_target, 1)
 
-    return loss
+            return loss
 
 
 def validation_step(self, batch, batch_idx, dataloader_idx=0):
