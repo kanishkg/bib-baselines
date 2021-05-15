@@ -954,7 +954,6 @@ class OfflineRL(pl.LightningModule):
             if self.policy_dist_old == None:
                 self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
-            b, s, z = actions_20.size()
             log_prob = []
             for i in range(20):
                 log_prob.append(policy_dist.log_prob(actions_20[:, i, :]))
@@ -983,9 +982,11 @@ class OfflineRL(pl.LightningModule):
             target_value = self.qnet_target(test_context_states_actions_20)
             eta = torch.sigmoid(self.eta)*3
             alpha = torch.sigmoid(self.alpha)
-            b, s, z = actions_20.size()
-            log_prob = policy_dist.log_prob(actions_20.view(b * s, z))
-            log_prob = log_prob.view(b, s, z)
+            log_prob = []
+            for i in range(20):
+                log_prob.append(policy_dist.log_prob(actions_20[:, i, :]))
+            log_prob = torch.stack(log_prob, dim=1)
+
             loss = torch.mean(
                 torch.sum(torch.exp(target_value / eta) * log_prob, dim=1) + alpha * (
                         self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
