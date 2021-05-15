@@ -929,7 +929,7 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
-            eta = torch.sigmoid(self.eta) * 3
+            eta = torch.sigmoid(self.eta)*3
             loss = torch.sum(eta * (self.eps + torch.log(torch.mean(torch.exp(target_value / eta), dim=1))))
             self.log('eta_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return loss
@@ -948,22 +948,23 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
-            eta = torch.sigmoid(self.eta) * 3
+            eta = torch.sigmoid(self.eta)*3
             alpha = torch.sigmoid(self.alpha)
 
             if self.policy_dist_old == None:
                 self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
+            b, s, z = actions_20.size()
             log_prob = []
             for i in range(20):
                 log_prob.append(policy_dist.log_prob(actions_20[:, i, :]))
             log_prob = torch.stack(log_prob, dim=1)
             loss = -torch.mean(
-            torch.sum(torch.exp(target_value / eta) * log_prob, dim=1) + alpha * (
-                    self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
+                torch.sum(torch.exp(target_value / eta) * log_prob, dim=1) + alpha * (
+                        self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
             self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu.detach(),
-            test_actions_sig.detach())
+                                                                     test_actions_sig.detach())
             return loss
 
         elif optimizer_idx == 4:
@@ -980,7 +981,7 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
-            eta = torch.sigmoid(self.eta) * 3
+            eta = torch.sigmoid(self.eta)*3
             alpha = torch.sigmoid(self.alpha)
             b, s, z = actions_20.size()
             log_prob = policy_dist.log_prob(actions_20.view(b * s, z))
@@ -994,115 +995,109 @@ class OfflineRL(pl.LightningModule):
 
             return loss
 
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
+        test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
+        q1, q2, value, test_r, done = self.forward(batch)
+        policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+        test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
+        predicted_value = self.valuenet(test_context_states)
 
-def validation_step(self, batch, batch_idx, dataloader_idx=0):
-    test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
-    q1, q2, value, test_r, done = self.forward(batch)
-    policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-    test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-    predicted_value = self.valuenet(test_context_states)
+        target_value = self.valuenet_target(test_context_states)
+        target_q_value = test_r + (1 - done) * self.gamma * target_value
 
-    target_value = self.valuenet_target(test_context_states)
-    target_q_value = test_r + (1 - done) * self.gamma * target_value
+        q1loss = F.mse_loss(q1, target_q_value.detach())
+        q2loss = F.mse_loss(q2, target_q_value.detach())
 
-    q1loss = F.mse_loss(q1, target_q_value.detach())
-    q2loss = F.mse_loss(q2, target_q_value.detach())
+        test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
+        predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
+                                self.softqnet2(test_context_states_actions_pred))
+        target_value_func = predicted_q - torch.sum(policy_dist.log_prob(test_actions_pred))
 
-    test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-    predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
-                            self.softqnet2(test_context_states_actions_pred))
-    target_value_func = predicted_q - torch.sum(policy_dist.log_prob(test_actions_pred))
+        value_loss = F.mse_loss(predicted_value, target_value_func.detach())
 
-    value_loss = F.mse_loss(predicted_value, target_value_func.detach())
+        policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
 
-    policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
+        self.log('val_q1loss', q1loss, on_epoch=True, logger=True)
+        self.log('val_q2loss', q2loss, on_epoch=True, logger=True)
+        self.log('val_value_loss', value_loss, on_epoch=True, logger=True)
+        self.log('val_policy_loss', policy_loss, on_epoch=True, logger=True)
 
-    self.log('val_q1loss', q1loss, on_epoch=True, logger=True)
-    self.log('val_q2loss', q2loss, on_epoch=True, logger=True)
-    self.log('val_value_loss', value_loss, on_epoch=True, logger=True)
-    self.log('val_policy_loss', policy_loss, on_epoch=True, logger=True)
+    def test_step(self, batch, batch_idx):
+        fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
+        fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions = batch
 
+        surprise_expected = []
+        for i in range(test_expected_states.size(1)):
+            test_actions, test_actions_pred = self.forward(
+                [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :, :, :].unsqueeze(1),
+                 test_expected_actions[:, i, :].unsqueeze(1)])
+            loss = F.mse_loss(test_actions, test_actions_pred)
+            surprise_expected.append(loss.cpu().numpy())
 
-def test_step(self, batch, batch_idx):
-    fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
-    fam_unexpected_states, fam_unexpected_actions, test_unexpected_states, test_unexpected_actions = batch
+        mean_expected_surprise = np.mean(surprise_expected)
+        max_expected_surprise = np.max(surprise_expected)
 
-    surprise_expected = []
-    for i in range(test_expected_states.size(1)):
-        test_actions, test_actions_pred = self.forward(
-            [fam_expected_states, fam_expected_actions, test_expected_states[:, i, :, :, :].unsqueeze(1),
-             test_expected_actions[:, i, :].unsqueeze(1)])
-        loss = F.mse_loss(test_actions, test_actions_pred)
-        surprise_expected.append(loss.cpu().numpy())
+        surprise_unexpected = []
+        for i in range(test_unexpected_states.size(1)):
+            test_actions, test_actions_pred = self.forward(
+                [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :, :, :].unsqueeze(1),
+                 test_unexpected_actions[:, i, :].unsqueeze(1)])
 
-    mean_expected_surprise = np.mean(surprise_expected)
-    max_expected_surprise = np.max(surprise_expected)
+            loss = F.mse_loss(test_actions, test_actions_pred)
+            surprise_unexpected.append(loss.cpu().numpy())
 
-    surprise_unexpected = []
-    for i in range(test_unexpected_states.size(1)):
-        test_actions, test_actions_pred = self.forward(
-            [fam_unexpected_states, fam_unexpected_actions, test_unexpected_states[:, i, :, :, :].unsqueeze(1),
-             test_unexpected_actions[:, i, :].unsqueeze(1)])
+        mean_unexpected_surprise = np.mean(surprise_unexpected)
+        max_unexpected_surprise = np.max(surprise_unexpected)
 
-        loss = F.mse_loss(test_actions, test_actions_pred)
-        surprise_unexpected.append(loss.cpu().numpy())
+        correct_mean = mean_expected_surprise < mean_unexpected_surprise + 0.5 * (
+                mean_expected_surprise == mean_unexpected_surprise)
+        correct_max = max_expected_surprise < max_unexpected_surprise + 0.5 * (
+                max_expected_surprise == max_unexpected_surprise)
+        self.log('test_expected_surprise', mean_expected_surprise, on_epoch=True, logger=True)
+        self.log('test_unexpected_surprise', mean_unexpected_surprise, prog_bar=True, logger=True)
+        self.log('test_expected_surprisem', max_expected_surprise, on_epoch=True, logger=True)
+        self.log('test_unexpected_surprisem', max_unexpected_surprise, prog_bar=True, logger=True)
+        self.log('accuracy_mean', correct_mean, prog_bar=True, logger=True)
+        self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
 
-    mean_unexpected_surprise = np.mean(surprise_unexpected)
-    max_unexpected_surprise = np.max(surprise_unexpected)
+    def configure_optimizers(self):
+        prior_opt = torch.optim.Adam(list(self.context_enc_mean.parameters()) + list(self.encoder.parameters()) + list(
+            self.policy_std_prior.parameters()) + list(self.policy_mean_prior.parameters()),
+                                     lr=self.lr)
+        q_opt = torch.optim.Adam(self.qnet.parameters(), lr=self.lr)
+        policy_opt = torch.optim.Adam(list(self.policy_std.parameters()) + list(self.policy_mean.parameters()),
+                                      lr=self.lr)
+        eta_opt = torch.optim.Adam([self.eta], lr=self.lr)
+        alpha_opt = torch.optim.Adam([self.alpha], lr=self.lr)
 
-    correct_mean = mean_expected_surprise < mean_unexpected_surprise + 0.5 * (
-            mean_expected_surprise == mean_unexpected_surprise)
-    correct_max = max_expected_surprise < max_unexpected_surprise + 0.5 * (
-            max_expected_surprise == max_unexpected_surprise)
-    self.log('test_expected_surprise', mean_expected_surprise, on_epoch=True, logger=True)
-    self.log('test_unexpected_surprise', mean_unexpected_surprise, prog_bar=True, logger=True)
-    self.log('test_expected_surprisem', max_expected_surprise, on_epoch=True, logger=True)
-    self.log('test_unexpected_surprisem', max_unexpected_surprise, prog_bar=True, logger=True)
-    self.log('accuracy_mean', correct_mean, prog_bar=True, logger=True)
-    self.log('accuracy_max', correct_max, prog_bar=True, logger=True)
+        return [prior_opt, q_opt, eta_opt, policy_opt, alpha_opt]
 
+    def train_dataloader(self):
+        train_dataset = RewardTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
+                                                process_data=self.hparams.process_data,
+                                                size=(self.hparams.size, self.hparams.size))
+        train_loader = DataLoader(dataset=train_dataset, batch_size=self.hparams.batch_size,
+                                  num_workers=self.hparams.num_workers, pin_memory=True, shuffle=True)
+        return train_loader
 
-def configure_optimizers(self):
-    prior_opt = torch.optim.Adam(list(self.context_enc_mean.parameters()) + list(self.encoder.parameters()) + list(
-        self.policy_std_prior.parameters()) + list(self.policy_mean_prior.parameters()),
-                                 lr=self.lr)
-    q_opt = torch.optim.Adam(self.qnet.parameters(), lr=self.lr)
-    policy_opt = torch.optim.Adam(list(self.policy_std.parameters()) + list(self.policy_mean.parameters()),
-                                  lr=self.lr)
-    eta_opt = torch.optim.Adam([self.eta], lr=self.lr)
-    alpha_opt = torch.optim.Adam([self.alpha], lr=self.lr)
+    def val_dataloader(self):
+        val_datasets = []
+        val_loaders = []
+        for t in self.hparams.types:
+            val_datasets.append(RewardTransitionDataset(self.hparams.data_path, types=[t], mode='val',
+                                                        process_data=self.hparams.process_data,
+                                                        size=(self.hparams.size, self.hparams.size)))
+            val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=self.hparams.batch_size,
+                                          num_workers=self.hparams.num_workers, pin_memory=True, shuffle=False))
+        return val_loaders
 
-    return [prior_opt, q_opt, eta_opt, policy_opt, alpha_opt]
-
-
-def train_dataloader(self):
-    train_dataset = RewardTransitionDataset(self.hparams.data_path, types=self.hparams.types, mode='train',
-                                            process_data=self.hparams.process_data,
-                                            size=(self.hparams.size, self.hparams.size))
-    train_loader = DataLoader(dataset=train_dataset, batch_size=self.hparams.batch_size,
-                              num_workers=self.hparams.num_workers, pin_memory=True, shuffle=True)
-    return train_loader
-
-
-def val_dataloader(self):
-    val_datasets = []
-    val_loaders = []
-    for t in self.hparams.types:
-        val_datasets.append(RewardTransitionDataset(self.hparams.data_path, types=[t], mode='val',
-                                                    process_data=self.hparams.process_data,
-                                                    size=(self.hparams.size, self.hparams.size)))
-        val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=self.hparams.batch_size,
-                                      num_workers=self.hparams.num_workers, pin_memory=True, shuffle=False))
-    return val_loaders
-
-
-def test_dataloader(self):
-    test_datasets = []
-    test_dataloaders = []
-    for t in self.hparams.types:
-        test_datasets.append(
-            TestRawTransitionDataset(self.hparams.data_path, types=t, process_data=self.hparams.process_data,
-                                     size=(self.hparams.size, self.hparams.size)))
-        test_dataloaders.append(
-            DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
-    return test_dataloaders
+    def test_dataloader(self):
+        test_datasets = []
+        test_dataloaders = []
+        for t in self.hparams.types:
+            test_datasets.append(
+                TestRawTransitionDataset(self.hparams.data_path, types=t, process_data=self.hparams.process_data,
+                                         size=(self.hparams.size, self.hparams.size)))
+            test_dataloaders.append(
+                DataLoader(dataset=test_datasets[-1], batch_size=1, num_workers=1, pin_memory=True, shuffle=False))
+        return test_dataloaders
