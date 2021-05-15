@@ -955,7 +955,7 @@ class OfflineRL(pl.LightningModule):
                 self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
             b, s, z = actions_20.size()
-            log_prob = policy_dist.log_prob(actions_20.view(b * s, z))
+            log_prob = policy_dist.log_prob(actions_20.contiguous().view(b * s, z))
             log_prob = log_prob.view(b, s, z)
             loss = -torch.mean(
                 torch.sum(torch.exp(target_value / eta) * log_prob, dim=1) + alpha * (
