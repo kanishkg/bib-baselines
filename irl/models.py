@@ -858,7 +858,7 @@ class OfflineRL(pl.LightningModule):
         self.policy_dist_old = None
 
     def forward(self, batch):
-        dem_frames, dem_actions, dem_next_frames, dem_r, test_frames, test_actions, test_next_frames, test_r, done = batch
+        dem_frames, dem_actions, dem_next_frames, dem_r, test_frames, test_actions, test_next_frames, done, test_r = batch
 
         dem_frames = dem_frames.float()
         dem_actions = dem_actions.float()
@@ -916,7 +916,7 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = torch.mean(self.qnet_target(test_context_states_actions_20), dim=1)
-            target_q_value = test_r + self.gamma * target_value
+            target_q_value = test_r + (1-done) * self.gamma * target_value
             test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
 
             qvalue = self.qnet(test_context_states_actions)
