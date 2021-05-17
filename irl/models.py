@@ -1010,7 +1010,6 @@ class OfflineRL(pl.LightningModule):
 
         prior_loss = torch.mean(-prior_dist.log_prob(test_actions))
 
-        print(target_value, target_q_value, test_r, qvalue, done)
         qloss = F.mse_loss(qvalue, torch.mean(target_q_value, dim=1).unsqueeze(1))
 
         test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
