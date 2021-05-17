@@ -888,7 +888,7 @@ class OfflineRL(pl.LightningModule):
         b, s, d = test_context_states.size()
         test_context_states = test_context_states.view(b * s, d)
         test_actions = test_actions.view(b * s, -1)
-        test_r = test_r.view(b * s, -1)
+        test_r = test_r.view(b * s, -1) / 200.
         done = done.view(b * s, -1)
 
         # for each state in the test states calculate action
