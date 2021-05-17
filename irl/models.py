@@ -969,16 +969,9 @@ class OfflineRL(pl.LightningModule):
         elif optimizer_idx == 4:
             test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
             test_r, done = self.forward(batch)
-            prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-            actions_20 = prior_dist.sample_n(20)
-            actions_20 = actions_20.permute(1, 0, 2)
-
             test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
             test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
             policy_dist = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
-
-            test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
-            test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             alpha = torch.sigmoid(self.alpha)
 
             loss = torch.mean(
@@ -990,30 +983,46 @@ class OfflineRL(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
         test_context_states, test_actions, test_actions_pred_mu, test_actions_pred_sig, context, \
-        q1, q2, value, test_r, done = self.forward(batch)
-        policy_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
-        test_actions_pred = torch.normal(test_actions_pred_mu, test_actions_pred_sig)
-        predicted_value = self.valuenet(test_context_states)
-
-        target_value = self.valuenet_target(test_context_states)
+        test_r, done = self.forward(batch)
+        prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
+        actions_20 = prior_dist.sample_n(20)
+        actions_20 = actions_20.permute(1, 0, 2)
+        test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
+        test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
+        target_value = torch.mean(self.qnet_target(test_context_states_actions_20), dim=2)
         target_q_value = test_r + (1 - done) * self.gamma * target_value
+        test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
+        qvalue = self.qnet(test_context_states_actions)
 
-        q1loss = F.mse_loss(q1, target_q_value.detach())
-        q2loss = F.mse_loss(q2, target_q_value.detach())
+        eta = torch.sigmoid(self.eta) * 3
+        eta_loss = torch.sum(eta * (self.eps + torch.log(torch.mean(torch.exp(target_value / eta), dim=1))))
 
-        test_context_states_actions_pred = torch.cat([test_context_states, test_actions_pred], dim=1)
-        predicted_q = torch.min(self.softqnet1(test_context_states_actions_pred),
-                                self.softqnet2(test_context_states_actions_pred))
-        target_value_func = predicted_q - torch.sum(policy_dist.log_prob(test_actions_pred))
+        prior_loss = torch.mean(-prior_dist.log_prob(test_actions))
+        qloss = F.mse_loss(qvalue, torch.mean(target_q_value, dim=1).unsqueeze(1))
 
-        value_loss = F.mse_loss(predicted_value, target_value_func.detach())
+        test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
+        test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
+        policy_dist = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
+        if self.policy_dist_old == None:
+            self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
-        policy_loss = torch.mean(torch.sum(policy_dist.log_prob(test_actions_pred)) - predicted_q)
+        alpha = torch.sigmoid(self.alpha)
+        log_prob = []
+        for i in range(20):
+            log_prob.append(policy_dist.log_prob(actions_20[:, i, :]))
+        log_prob = torch.stack(log_prob, dim=1)
+        policy_loss = -torch.mean(
+            torch.sum(torch.exp(target_value / eta) * log_prob, dim=1) + alpha * (
+                    self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
 
-        self.log('val_q1loss', q1loss, on_epoch=True, logger=True)
-        self.log('val_q2loss', q2loss, on_epoch=True, logger=True)
-        self.log('val_value_loss', value_loss, on_epoch=True, logger=True)
-        self.log('val_policy_loss', policy_loss, on_epoch=True, logger=True)
+        alpha_loss = torch.mean(
+            alpha * (self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
+        self.log('val_prior_loss', prior_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_q_loss', qloss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_eta_loss', eta_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_alpha_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
 
     def test_step(self, batch, batch_idx):
         fam_expected_states, fam_expected_actions, test_expected_states, test_expected_actions, \
