@@ -916,8 +916,9 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = torch.mean(self.qnet_target(test_context_states_actions_20), dim=1)
-            target_q_value = test_r + (1 - done) * self.gamma * target_value
+            target_q_value = test_r + self.gamma * target_value
             test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
+
             qvalue = self.qnet(test_context_states_actions)
             qloss = F.mse_loss(qvalue, target_q_value.detach())
             self.log('q_loss', qloss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -1008,6 +1009,8 @@ class OfflineRL(pl.LightningModule):
         eta_loss = torch.sum(eta * (self.eps + torch.logsumexp(target_value.detach() / eta, dim=1)))
 
         prior_loss = torch.mean(-prior_dist.log_prob(test_actions))
+
+        print(target_value, target_q_value, test_r, qvalue)
         qloss = F.mse_loss(qvalue, torch.mean(target_q_value, dim=1).unsqueeze(1))
 
         test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
