@@ -1019,8 +1019,9 @@ class OfflineRL(pl.LightningModule):
             log_prob.append(policy_dist.log_prob(actions_20[:, i, :]))
         log_prob = torch.stack(log_prob, dim=1)
 
+        target_value2 = self.qnet_target(test_context_states_actions_20)
         policy_loss = -torch.mean(
-            torch.sum(torch.exp(target_value / eta) * log_prob, dim=1))
+            torch.sum(torch.exp(target_value2 / eta) * log_prob, dim=1))
 
         self.log('val_prior_loss', prior_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_q_loss', qloss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
