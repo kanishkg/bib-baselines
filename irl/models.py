@@ -933,7 +933,7 @@ class OfflineRL(pl.LightningModule):
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
             eta = torch.sigmoid(self.eta) * 3 + 1e-3
-            loss = torch.sum(eta * (self.eps + torch.log(torch.mean(torch.exp(target_value.detach() / eta), dim=1)+1e-5)))
+            loss = torch.sum(eta * (self.eps + torch.logsumexp(target_value.detach() / eta, dim=1)))
             self.log('eta_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return loss
 
