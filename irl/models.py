@@ -1018,6 +1018,7 @@ class OfflineRL(pl.LightningModule):
         for i in range(20):
             log_prob.append(policy_dist.log_prob(actions_20[:, i, :]))
         log_prob = torch.stack(log_prob, dim=1)
+
         policy_loss = -torch.mean(
             torch.sum(torch.exp(target_value / eta) * log_prob, dim=1))
 
