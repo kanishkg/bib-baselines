@@ -912,11 +912,11 @@ class OfflineRL(pl.LightningModule):
             actions_20 = actions_20.permute(1, 0, 2)
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
-            target_value = torch.mean(self.qnet_target(test_context_states_actions_20), dim=2)
+            target_value = torch.mean(self.qnet_target(test_context_states_actions_20), dim=1)
             target_q_value = test_r + (1 - done) * self.gamma * target_value
             test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
             qvalue = self.qnet(test_context_states_actions)
-            qloss = F.mse_loss(qvalue, torch.mean(target_q_value.detach(), dim=1).unsqueeze(1))
+            qloss = F.mse_loss(qvalue, target_q_value.detach())
             self.log('q_loss', qloss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return qloss
 
