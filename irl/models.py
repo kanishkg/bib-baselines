@@ -1023,10 +1023,10 @@ class OfflineRL(pl.LightningModule):
         policy_loss = -torch.mean(
             torch.sum(torch.exp(target_value2 / eta) * log_prob, dim=1))
 
-        self.log('val_prior_loss', prior_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_q_loss', qloss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_eta_loss', eta_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_prior_loss', prior_loss, on_epoch=True, logger=True)
+        self.log('val_q_loss', qloss,  on_epoch=True, logger=True)
+        self.log('val_eta_loss', eta_loss,  on_epoch=True, logger=True)
+        self.log('val_policy_loss', policy_loss, on_epoch=True, logger=True)
 
 
     def test_step(self, batch, batch_idx):
