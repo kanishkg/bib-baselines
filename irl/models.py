@@ -1,5 +1,6 @@
 import math
 from argparse import ArgumentParser
+import copy
 
 import numpy as np
 import torch
@@ -845,10 +846,12 @@ class OfflineRL(pl.LightningModule):
         self.policy_std = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
                                    output_size=self.action_dim, dropout=self.dropout)
 
+        self.policy_mean_old = copy.deepcopy(self.policy_mean)
+        self.policy_std_old = copy.deepcopy(self.policy_std)
+
         self.qnet = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
                              hidden_sizes=[256, 128, 256], output_size=1)
-        self.qnet_target = MlpModel(input_size=self.state_dim + self.action_dim + self.context_dim,
-                                    hidden_sizes=[256, 128, 256], output_size=1)
+        self.qnet_target = copy.deepcopy(self.qnet)
 
         self.eta = torch.nn.Parameter(torch.tensor(3.))
         self.alpha = torch.nn.Parameter(torch.tensor(1.))
@@ -945,14 +948,16 @@ class OfflineRL(pl.LightningModule):
             test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
             policy_dist = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
+            test_actions_mu_old = torch.tanh(self.policy_mean_old(test_context_states))
+            test_actions_sig_old = torch.sigmoid(self.policy_std_old(test_context_states))
+            policy_dist_old = torch.distributions.normal.Normal(test_actions_mu_old.detach(), test_actions_sig_old.detach())
+
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
             eta = torch.sigmoid(self.eta) * 3
             alpha = torch.sigmoid(self.alpha)
 
-            if self.policy_dist_old == None:
-                self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
             log_prob = []
             for i in range(20):
@@ -960,10 +965,8 @@ class OfflineRL(pl.LightningModule):
             log_prob = torch.stack(log_prob, dim=1)
             loss = -torch.mean(
                 torch.sum(torch.exp(target_value.detach() / eta.detach()) * log_prob, dim=1) + alpha.detach() * (
-                        self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
+                        self.eps - torch.distributions.kl.kl_divergence(policy_dist, policy_dist_old)))
             self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            self.policy_dist_old = torch.distributions.normal.Normal(test_actions_mu.detach(),
-                                                                     test_actions_sig.detach())
             return loss
 
         elif optimizer_idx == 4:
@@ -972,11 +975,18 @@ class OfflineRL(pl.LightningModule):
             test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
             test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
             policy_dist = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
+            test_actions_mu_old = torch.tanh(self.policy_mean_old(test_context_states))
+            test_actions_sig_old = torch.sigmoid(self.policy_std_old(test_context_states))
+            policy_dist_old = torch.distributions.normal.Normal(test_actions_mu_old.detach(), test_actions_sig_old.detach())
+
             alpha = torch.sigmoid(self.alpha)
 
             loss = torch.mean(
-                alpha * (self.eps - torch.distributions.kl.kl_divergence(policy_dist, self.policy_dist_old)))
+                alpha * (self.eps - torch.distributions.kl.kl_divergence(policy_dist, policy_dist_old)))
             self.log('alpha_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            update_state_dict(self.policy_mean_old, self.policy_mean.state_dict(), 1)
+            update_state_dict(self.policy_std_old, self.policy_std.state_dict(), 1)
+
             if batch_idx % 100 == 0:
                 update_state_dict(self.qnet_target, self.qnet.state_dict(), 1)
             return loss
