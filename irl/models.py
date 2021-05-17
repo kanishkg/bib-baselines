@@ -988,7 +988,7 @@ class OfflineRL(pl.LightningModule):
                 alpha * (self.eps - torch.distributions.kl.kl_divergence(policy_dist, policy_dist_old)))
             self.log('alpha_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-            if batch_idx % 100 == 0:
+            if batch_idx % 200 == 0:
                 update_state_dict(self.qnet_target, self.qnet.state_dict(), 1)
             return loss
 
@@ -1010,7 +1010,7 @@ class OfflineRL(pl.LightningModule):
 
         prior_loss = torch.mean(-prior_dist.log_prob(test_actions))
 
-        print(target_value, target_q_value, test_r, qvalue)
+        print(target_value, target_q_value, test_r, qvalue, done)
         qloss = F.mse_loss(qvalue, torch.mean(target_q_value, dim=1).unsqueeze(1))
 
         test_actions_mu = torch.tanh(self.policy_mean(test_context_states))
