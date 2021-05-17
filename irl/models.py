@@ -967,6 +967,8 @@ class OfflineRL(pl.LightningModule):
                 torch.sum(torch.exp(target_value.detach() / eta.detach()) * log_prob, dim=1) + alpha.detach() * (
                         self.eps - torch.distributions.kl.kl_divergence(policy_dist, policy_dist_old)))
             self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            update_state_dict(self.policy_mean_old, self.policy_mean.state_dict(), 1)
+            update_state_dict(self.policy_std_old, self.policy_std.state_dict(), 1)
             return loss
 
         elif optimizer_idx == 4:
@@ -984,8 +986,6 @@ class OfflineRL(pl.LightningModule):
             loss = torch.mean(
                 alpha * (self.eps - torch.distributions.kl.kl_divergence(policy_dist, policy_dist_old)))
             self.log('alpha_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            update_state_dict(self.policy_mean_old, self.policy_mean.state_dict(), 1)
-            update_state_dict(self.policy_std_old, self.policy_std.state_dict(), 1)
 
             if batch_idx % 100 == 0:
                 update_state_dict(self.qnet_target, self.qnet.state_dict(), 1)
