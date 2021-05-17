@@ -1021,7 +1021,7 @@ class OfflineRL(pl.LightningModule):
         self.log('val_q_loss', qloss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_eta_loss', eta_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_policy_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('val_alpha_loss', policy_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_alpha_loss', alpha_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
 
     def test_step(self, batch, batch_idx):
