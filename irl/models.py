@@ -932,7 +932,7 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
-            eta = torch.sigmoid(self.eta) * 3
+            eta = torch.sigmoid(self.eta) * 3 + 1e-3
             loss = torch.sum(eta * (self.eps + torch.log(torch.mean(torch.exp(target_value.detach() / eta), dim=1))))
             self.log('eta_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return loss
@@ -955,8 +955,8 @@ class OfflineRL(pl.LightningModule):
             test_context_states_20 = test_context_states.unsqueeze(1).repeat(1, 20, 1)
             test_context_states_actions_20 = torch.cat([test_context_states_20, actions_20], dim=2)
             target_value = self.qnet_target(test_context_states_actions_20)
-            eta = torch.sigmoid(self.eta) * 3
-            alpha = torch.sigmoid(self.alpha)
+            eta = torch.sigmoid(self.eta) * 3 + 1e-3
+            alpha = torch.sigmoid(self.alpha) + 1e-3
 
 
             log_prob = []
@@ -981,7 +981,7 @@ class OfflineRL(pl.LightningModule):
             test_actions_sig_old = torch.sigmoid(self.policy_std_old(test_context_states))
             policy_dist_old = torch.distributions.normal.Normal(test_actions_mu_old.detach(), test_actions_sig_old.detach())
 
-            alpha = torch.sigmoid(self.alpha)
+            alpha = torch.sigmoid(self.alpha) + 1e-3
 
             loss = torch.mean(
                 alpha * (self.eps - torch.distributions.kl.kl_divergence(policy_dist, policy_dist_old)))
@@ -1004,7 +1004,7 @@ class OfflineRL(pl.LightningModule):
         test_context_states_actions = torch.cat([test_context_states, test_actions], dim=1)
         qvalue = self.qnet(test_context_states_actions)
 
-        eta = torch.sigmoid(self.eta) * 3
+        eta = torch.sigmoid(self.eta) * 3 + 1e-3
         eta_loss = torch.sum(eta * (self.eps + torch.log(torch.mean(torch.exp(target_value / eta), dim=1))))
 
         prior_loss = torch.mean(-prior_dist.log_prob(test_actions))
@@ -1014,7 +1014,6 @@ class OfflineRL(pl.LightningModule):
         test_actions_sig = torch.sigmoid(self.policy_std(test_context_states))
         policy_dist = torch.distributions.normal.Normal(test_actions_mu, test_actions_sig)
 
-        alpha = torch.sigmoid(self.alpha)
         log_prob = []
         for i in range(20):
             log_prob.append(policy_dist.log_prob(actions_20[:, i, :]))
