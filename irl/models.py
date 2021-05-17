@@ -1005,7 +1005,7 @@ class OfflineRL(pl.LightningModule):
         qvalue = self.qnet(test_context_states_actions)
 
         eta = torch.sigmoid(self.eta) * 3 + 1e-3
-        eta_loss = torch.sum(eta * (self.eps + torch.log(torch.mean(torch.exp(target_value / eta), dim=1))))
+        eta_loss = torch.sum(eta * (self.eps + torch.logsumexp(target_value.detach() / eta, dim=1)))
 
         prior_loss = torch.mean(-prior_dist.log_prob(test_actions))
         qloss = F.mse_loss(qvalue, torch.mean(target_q_value, dim=1).unsqueeze(1))
