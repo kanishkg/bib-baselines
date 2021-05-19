@@ -21,8 +21,8 @@ def collate_function_seq(batch):
     # test_frames = torch.stack([item[3] for item in batch])
     # test_actions = torch.stack([item[4] for item in batch])
     # context_lens = [item[5] for item in batch]
-    query_frames = torch.stack([item[2] for item in batch])
-    target_actions = torch.stack([item[3] for item in batch])
+    query_frames = torch.stack([item[3] for item in batch])
+    target_actions = torch.stack([item[4] for item in batch])
     # return [dem_frames, dem_actions, dem_lens, test_frames, test_actions, context_lens, query_frames, target_actions]
     return [dem_frames, dem_actions, dem_lens, query_frames, target_actions]
 
