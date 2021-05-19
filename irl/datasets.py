@@ -837,7 +837,7 @@ class SeqTransitionDataset(torch.utils.data.Dataset):
         trial_len = []
         context_len = None
 
-        trial_len += [(t, n) for n in range(0, len(self.data_tuples[t]), step)]
+        trial_len += [(trial, n) for n in range(0, len(self.data_tuples[trial]), step)]
 
         query_idx = random.randint(0, len(trial_len) - 2)
         context_len = query_idx - 1
