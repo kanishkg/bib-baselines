@@ -18,12 +18,14 @@ def collate_function_seq(batch):
     dem_frames = torch.stack([item[0] for item in batch])
     dem_actions = torch.stack([item[1] for item in batch])
     dem_lens = [item[2] for item in batch]
-    test_frames = torch.stack([item[3] for item in batch])
-    test_actions = torch.stack([item[4] for item in batch])
-    context_lens = [item[5] for item in batch]
+    # test_frames = torch.stack([item[3] for item in batch])
+    # test_actions = torch.stack([item[4] for item in batch])
+    # context_lens = [item[5] for item in batch]
     query_frames = torch.stack([item[6] for item in batch])
     target_actions = torch.stack([item[7] for item in batch])
-    return [dem_frames, dem_actions, dem_lens, test_frames, test_actions, context_lens, query_frames, target_actions]
+    # return [dem_frames, dem_actions, dem_lens, test_frames, test_actions, context_lens, query_frames, target_actions]
+    return [dem_frames, dem_actions, dem_lens, query_frames, target_actions]
+
 
 class CacheDataset(torch.utils.data.Dataset):
 
@@ -842,29 +844,29 @@ class SeqTransitionDataset(torch.utils.data.Dataset):
         context_len = query_idx - 1
         tq, nq = trial_len[query_idx]
 
-        if query_idx > self.max_len:
-            trial_len = trial_len[query_idx - self.max_len:query_idx]
-            context_len = self.max_len
-
-        for t, n in trial_len[:query_idx]:
-            video = self.data_tuples[t][n][0]
-            states = self._get_frame(video, self.data_tuples[t][n][1])
-
-            if len(self.data_tuples[t]) > n + self.action_range:
-                actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
-            else:
-                actions_xy = [d[2] for d in self.data_tuples[t][n:]]
-            actions_xy = np.array(actions_xy)
-            actions_xy = np.mean(actions_xy, axis=0)
-            actions.append(actions_xy)
-
-        states = torch.tensor(np.array(states))
-        trial_frames_padded = torch.zeros(self.max_len, states.size(1), states.size(2),
-                                          states.size(3))
-        trial_frames_padded[:states.size(0), :, :, :] = states
-        actions = torch.tensor(np.array(actions))
-        trial_actions_padded = torch.zeros(self.max_len, actions.size(1))
-        trial_actions_padded[:actions.size(0), :] = actions
+        # if query_idx > self.max_len:
+        #     trial_len = trial_len[query_idx - self.max_len:query_idx]
+        #     context_len = self.max_len
+        #
+        # for t, n in trial_len[:query_idx]:
+        #     video = self.data_tuples[t][n][0]
+        #     states = self._get_frame(video, self.data_tuples[t][n][1])
+        #
+        #     if len(self.data_tuples[t]) > n + self.action_range:
+        #         actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
+        #     else:
+        #         actions_xy = [d[2] for d in self.data_tuples[t][n:]]
+        #     actions_xy = np.array(actions_xy)
+        #     actions_xy = np.mean(actions_xy, axis=0)
+        #     actions.append(actions_xy)
+        #
+        # states = torch.tensor(np.array(states))
+        # trial_frames_padded = torch.zeros(self.max_len, states.size(1), states.size(2),
+        #                                   states.size(3))
+        # trial_frames_padded[:states.size(0), :, :, :] = states
+        # actions = torch.tensor(np.array(actions))
+        # trial_actions_padded = torch.zeros(self.max_len, actions.size(1))
+        # trial_actions_padded[:actions.size(0), :] = actions
 
         query_frame = torch.tensor(self._get_frame(video, self.data_tuples[tq][nq][1]))
         if len(self.data_tuples[tq]) > nq + self.action_range:
@@ -874,16 +876,16 @@ class SeqTransitionDataset(torch.utils.data.Dataset):
         actions_xy = np.array(actions_xy)
         actions_xy = np.mean(actions_xy, axis=0)
         target_action = torch.tensor(actions_xy)
-        return trial_frames_padded, trial_actions_padded, context_len, query_frame, target_action
+        # return trial_frames_padded, trial_actions_padded, context_len, query_frame, target_action
+        return query_frame, target_action
 
     def __getitem__(self, idx):
         # retrieve 2 expert trajectories
         ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
         random.shuffle(ep_trials)
         dem_states, dem_actions, dem_lens = self.get_trial(ep_trials[:-1], step=self.action_range)
-        test_states, test_actions, context_len, query_frame, target_action = self.get_test(ep_trials[-1],
-                                                                                           step=self.action_range)
-        return dem_states, dem_actions, dem_lens, test_states, test_actions, context_len, query_frame, target_action
+        query_frame, target_action = self.get_test(ep_trials[-1], step=self.action_range)
+        return dem_states, dem_actions, dem_lens, query_frame, target_action
 
     def __len__(self):
         return self.tot_trials // self.num_trials
