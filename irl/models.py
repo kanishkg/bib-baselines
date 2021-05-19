@@ -1149,7 +1149,7 @@ class ContextImitationLSTM(pl.LightningModule):
         self.context_enc = torch.nn.LSTM(self.state_dim + self.action_dim, self.context_dim, 2, batch_first=True,
                                          bidirectional=True)
 
-        self.policy = MlpModel(input_size=self.state_dim + self.context_dim, hidden_sizes=[256, 128, 256],
+        self.policy = MlpModel(input_size=self.state_dim + self.context_dim*2, hidden_sizes=[256, 128, 256],
                                output_size=self.action_dim, dropout=self.dropout)
         self.past_samples = []
 
