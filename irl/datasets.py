@@ -821,7 +821,7 @@ class SeqTransitionDataset(torch.utils.data.Dataset):
                                               states[-1].size(3))
             trial_frames_padded[:states[-1].size(0), :, :, :] = states[-1]
             states[-1] = trial_frames_padded
-            actions[-1] = torch.stack(actions[-1])
+            actions[-1] = torch.tensor(np.array(actions[-1]))
             trial_actions_padded = torch.zeros(self.max_len, actions[-1].size(1))
             trial_actions_padded[:actions[-1].size(0), :] = actions[-1]
             actions[-1] = trial_actions_padded
