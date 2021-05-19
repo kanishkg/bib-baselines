@@ -866,7 +866,7 @@ class SeqTransitionDataset(torch.utils.data.Dataset):
         # actions = torch.tensor(np.array(actions))
         # trial_actions_padded = torch.zeros(self.max_len, actions.size(1))
         # trial_actions_padded[:actions.size(0), :] = actions
-
+        video = self.data_tuples[tq][nq][0]
         query_frame = torch.tensor(self._get_frame(video, self.data_tuples[tq][nq][1]))
         if len(self.data_tuples[tq]) > nq + self.action_range:
             actions_xy = [d[2] for d in self.data_tuples[tq][nq:nq + self.action_range]]
