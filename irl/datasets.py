@@ -835,7 +835,7 @@ class TestRewardTransitionDataset(torch.utils.data.Dataset):
         cap.release()
         return frame
 
-    def get_trial(self, trials, data, num_transitions=100, step=1, shuffle=False):
+    def get_trial(self, trials, data, step=1, shuffle=False):
         # retrieve state embeddings and actions from cached file
         states = []
         next_states = []
@@ -845,27 +845,27 @@ class TestRewardTransitionDataset(torch.utils.data.Dataset):
         done = []
 
         for t in trials:
-            trial_len += [(t, n) for n in range(0, len(self.data_tuples[t]), step)]
+            trial_len += [(t, n) for n in range(0, len(data[t]), step)]
         if shuffle:
             random.shuffle(trial_len)
             trial_len = trial_len[:100]
 
         for t, n in trial_len:
-            video = self.data_tuples[t][n][0]
-            states.append(self._get_frame(video, self.data_tuples[t][n][1]))
+            video = data[t][n][0]
+            states.append(self._get_frame(video, data[t][n][1]))
 
-            goal_location = self.data_tuples[t][0][3]
-            if len(self.data_tuples[t]) > n + self.action_range:
-                actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
-                final_location = self.data_tuples[t][n + self.action_range][4]
+            goal_location = data[t][0][3]
+            if len(data[t]) > n + self.action_range:
+                actions_xy = [d[2] for d in data[t][n:n + self.action_range]]
+                final_location = data[t][n + self.action_range][4]
                 done.append(0.)
-                next_states.append(self._get_frame(video, self.data_tuples[t][n + self.action_range][1]))
+                next_states.append(self._get_frame(video, data[t][n + self.action_range][1]))
 
             else:
-                actions_xy = [d[2] for d in self.data_tuples[t][n:]]
-                final_location = self.data_tuples[t][-1][4]
+                actions_xy = [d[2] for d in data[t][n:]]
+                final_location = data[t][-1][4]
                 done.append(1.)
-                next_states.append(self._get_frame(video, self.data_tuples[t][-1][1]))
+                next_states.append(self._get_frame(video, data[t][-1][1]))
 
             distance_goal = ((goal_location[0] - final_location[0]) ** 2 + (
                     goal_location[1] - final_location[1]) ** 2) ** 0.5
@@ -1097,3 +1097,155 @@ class SeqTransitionDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.tot_trials // self.num_trials
+
+
+class TestSeqTransitionDataset(torch.utils.data.Dataset):
+
+    def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9,
+                 action_range=10, process_data=0, max_len=30):
+        self.path = path
+        self.types = types
+        self.size = size
+        self.mode = mode
+        self.num_trials = num_trials
+        self.num_context = num_context
+        self.num_test = num_test
+        self.action_range = action_range
+        self.max_len = max_len
+        self.ep_combs = self.num_trials * (self.num_trials - 2)  # 9p2 - 9
+        self.eps = [[x, y] for x in range(self.num_trials) for y in range(self.num_trials) if x != y]
+
+
+        self.path_list_exp = []
+        self.json_list_exp = []
+        self.path_list_un = []
+        self.json_list_un = []
+
+        print(f'reading files of type {types} in {mode}')
+        paths_expected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
+                                 x.endswith(f'{types}e.mp4')])
+        jsons_expected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
+                                 x.endswith(f'{types}e.json') and 'index' not in x])
+        paths_unexpected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
+                                   x.endswith(f'{types}u.mp4')])
+        jsons_unexpected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
+                                   x.endswith(f'{types}u.json') and 'index' not in x])
+
+        self.path_list_exp += paths_expected
+        self.json_list_exp += jsons_expected
+        self.path_list_un += paths_unexpected
+        self.json_list_un += jsons_unexpected
+
+
+        self.data_expected = []
+        self.data_unexpected = []
+
+        if process_data:
+            print(f'processing files {len(self.json_list)}')
+            raise NotImplementedError
+
+        else:
+            with open(os.path.join(self.path, f'index_bib_{mode}_{types}e.json'), 'r') as fp:
+                index_dict = json.load(fp)
+            self.data_expected = index_dict['data_tuples']
+            with open(os.path.join(self.path, f'index_bib_{mode}_{types}u.json'), 'r') as fp:
+                index_dict = json.load(fp)
+            self.data_unexpected = index_dict['data_tuples']
+
+        self.tot_trials = len(self.path_list) * 9
+
+    def _get_frame(self, video, frame_idx):
+        cap = cv2.VideoCapture(video)
+        # read frame at id and resize
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        _, frame = cap.read()
+        if self.size is not None:
+            assert frame is not None, f'frame is empty {frame_idx}, {video}'
+            frame = cv2.resize(frame, self.size)
+        frame = torch.tensor(frame).permute(2, 0, 1)
+        # return frames as a torch tensor f x c x w x h
+        frame = frame.to(torch.float32) / 255.
+        cap.release()
+        return frame
+
+    def get_trial(self, trials, data, step=10):
+        # retrieve state embeddings and actions from cached file
+        states = []
+        actions = []
+        trial_len = []
+        lens = []
+
+        for t in trials:
+            tl = [(t, n) for n in range(0, len(self.data_tuples[t]), step)]
+            if len(tl) > self.max_len:
+                tl = tl[:self.max_len]
+            trial_len.append(tl)
+
+        for tl in trial_len:
+            states.append([])
+            actions.append([])
+            lens.append(len(tl))
+            for t, n in tl:
+                video = self.data_tuples[t][n][0]
+                states[-1].append(self._get_frame(video, self.data_tuples[t][n][1]))
+
+                if len(self.data_tuples[t]) > n + self.action_range:
+                    actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
+                else:
+                    actions_xy = [d[2] for d in self.data_tuples[t][n:]]
+                actions_xy = np.array(actions_xy)
+                actions_xy = np.mean(actions_xy, axis=0)
+                actions[-1].append(actions_xy)
+            states[-1] = torch.stack(states[-1])
+            trial_frames_padded = torch.zeros(self.max_len, states[-1].size(1), states[-1].size(2),
+                                              states[-1].size(3))
+            trial_frames_padded[:states[-1].size(0), :, :, :] = states[-1]
+            states[-1] = trial_frames_padded
+            actions[-1] = torch.tensor(np.array(actions[-1]))
+            trial_actions_padded = torch.zeros(self.max_len, actions[-1].size(1))
+            trial_actions_padded[:actions[-1].size(0), :] = actions[-1]
+            actions[-1] = trial_actions_padded
+
+        states = torch.stack(states)
+        actions = torch.stack(actions)
+        return states, actions, lens
+
+    def get_test(self, trial, data, step=10):
+        # retrieve state embeddings and actions from cached file
+        states = []
+        actions = []
+        trial_len = []
+
+        trial_len += [(trial, n) for n in range(0, len(data[trial]), step)]
+
+        for t, n in trial_len:
+            video = data[t][n][0]
+            states = self._get_frame(video, data[t][n][1])
+
+            if len(data[t]) > n + self.action_range:
+                actions_xy = [d[2] for d in data[t][n:n + self.action_range]]
+            else:
+                actions_xy = [d[2] for d in data[t][n:]]
+            actions_xy = np.array(actions_xy)
+            actions_xy = np.mean(actions_xy, axis=0)
+            actions.append(actions_xy)
+
+        states = torch.tensor(np.array(states))
+        actions = torch.tensor(np.array(actions))
+        return states, actions
+
+    def __getitem__(self, idx):
+        # retrieve 2 expert trajectories
+        ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
+        dem_expected_states, dem_expected_actions, dem_expected_lens = self.get_trial(ep_trials[:-1], self.data_expected, step=self.action_range)
+        dem_unexpected_states, dem_unexpected_actions, dem_unexpected_lens = self.get_trial(ep_trials[:-1], self.data_unexpected, step=self.action_range)
+
+        query_expected_frames, target_expected_actions = self.get_test(ep_trials[-1], self.data_expected, step=self.action_range)
+        query_unexpected_frames, target_unexpected_actions = self.get_test(ep_trials[-1], self.data_unexpected, step=self.action_range)
+
+        return dem_expected_states, dem_expected_actions, dem_expected_lens, query_expected_frames, target_expected_actions, \
+                dem_unexpected_states, dem_unexpected_actions, dem_unexpected_lens, query_unexpected_frames, target_unexpected_actions
+
+    def __len__(self):
+        return len(self.path_list_exp)
+
