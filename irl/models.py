@@ -904,7 +904,9 @@ class OfflineRL(pl.LightningModule):
             test_r, done = self.forward(batch)
             prior_dist = torch.distributions.normal.Normal(test_actions_pred_mu, test_actions_pred_sig)
             prior_loss = torch.mean(-prior_dist.log_prob(test_actions))
+            prior_mse = F.mse_loss(test_actions_pred_mu, test_actions)
             self.log('prior_loss', prior_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('prior_mse', prior_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True)
             return prior_loss
 
         elif optimizer_idx == 1:
@@ -967,7 +969,11 @@ class OfflineRL(pl.LightningModule):
             loss = -torch.mean(
                 torch.sum(torch.exp(target_value.detach() / eta.detach()) * log_prob, dim=1) + alpha.detach() * (
                         self.eps - torch.distributions.kl.kl_divergence(policy_dist, policy_dist_old)))
+
+            policy_mse = F.mse_loss(test_actions_mu, test_actions)
             self.log('policy_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            self.log('policy_mse', policy_mse, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
             update_state_dict(self.policy_mean_old, self.policy_mean.state_dict(), 1)
             update_state_dict(self.policy_std_old, self.policy_std.state_dict(), 1)
             return loss
@@ -1026,7 +1032,13 @@ class OfflineRL(pl.LightningModule):
         policy_loss = -torch.mean(
             torch.sum(torch.exp(target_value2 / eta) * log_prob, dim=1))
 
+
+        prior_mse = F.mse_loss(test_actions_pred_mu, test_actions)
+        policy_mse = F.mse_loss(test_actions_mu, test_actions)
+
         self.log('val_prior_loss', prior_loss, on_epoch=True, logger=True)
+        self.log('val_prior_mse', prior_mse, on_epoch=True, logger=True)
+        self.log('val_policy_mse', policy_mse, on_epoch=True, logger=True)
         self.log('val_q_loss', qloss, on_epoch=True, logger=True)
         self.log('val_eta_loss', eta_loss, on_epoch=True, logger=True)
         self.log('val_policy_loss', policy_loss, on_epoch=True, logger=True)
