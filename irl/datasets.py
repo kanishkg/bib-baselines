@@ -746,7 +746,7 @@ class TestRewardTransitionDataset(torch.utils.data.Dataset):
                 ep_lens = [len(x) for x in state]
                 past_len = 0
                 for e, l in enumerate(ep_lens):
-                    self.data_tuples.append([])
+                    self.data_expected.append([])
                     # skip first 30 frames and last 83 frames
                     fx, fy = state[e][-1]['agent'][0]
                     if len(state[e][-1]['objects']) == 1:
