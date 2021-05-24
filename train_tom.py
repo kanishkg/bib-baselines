@@ -46,6 +46,7 @@ model = ContextImitationLSTM(args)
 torch.autograd.set_detect_anomaly(True)
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
+trainer.callbacks = [checkpoint_callback]
 
 if args.train:
     trainer.fit(model)
