@@ -37,9 +37,8 @@ random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 checkpoint_callback = ModelCheckpoint(
-    monitor='val_loss',
-    save_top_k=5,
-    mode='min',
+    monitor='val_loss/dataloader_idx_1',
+    save_top_k=-1,
 )
 # init model
 model = ContextImitationLSTM(args)
