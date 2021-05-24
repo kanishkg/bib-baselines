@@ -4,6 +4,8 @@ from argparse import ArgumentParser
 import numpy as np
 import torch
 from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
+
 
 from irl.models import ContextImitation, ContextImitationPixel, ContextNLL, ContextAIL, OfflineRL, ContextImitationLSTM
 
@@ -34,7 +36,11 @@ print(args)
 random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
-
+checkpoint_callback = ModelCheckpoint(
+    monitor='val_loss',
+    save_top_k=5,
+    mode='min',
+)
 # init model
 model = ContextImitationLSTM(args)
 torch.autograd.set_detect_anomaly(True)
