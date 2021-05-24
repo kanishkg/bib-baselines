@@ -1175,7 +1175,7 @@ class TestSeqTransitionDataset(torch.utils.data.Dataset):
         lens = []
 
         for t in trials:
-            tl = [(t, n) for n in range(0, len(self.data_tuples[t]), step)]
+            tl = [(t, n) for n in range(0, len(data[t]), step)]
             if len(tl) > self.max_len:
                 tl = tl[:self.max_len]
             trial_len.append(tl)
@@ -1185,13 +1185,13 @@ class TestSeqTransitionDataset(torch.utils.data.Dataset):
             actions.append([])
             lens.append(len(tl))
             for t, n in tl:
-                video = self.data_tuples[t][n][0]
-                states[-1].append(self._get_frame(video, self.data_tuples[t][n][1]))
+                video = data[t][n][0]
+                states[-1].append(self._get_frame(video, data[t][n][1]))
 
-                if len(self.data_tuples[t]) > n + self.action_range:
-                    actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
+                if len(data[t]) > n + self.action_range:
+                    actions_xy = [d[2] for d in data[t][n:n + self.action_range]]
                 else:
-                    actions_xy = [d[2] for d in self.data_tuples[t][n:]]
+                    actions_xy = [d[2] for d in data[t][n:]]
                 actions_xy = np.array(actions_xy)
                 actions_xy = np.mean(actions_xy, axis=0)
                 actions[-1].append(actions_xy)
