@@ -1,10 +1,8 @@
 import json
 import os
 import random
-import pickle
 
 import cv2
-import h5py
 import numpy as np
 import torch
 import torch.utils.data
@@ -47,7 +45,7 @@ def index_data(json_list, path_list):
 
 class TransitionDataset(torch.utils.data.Dataset):
     """
-    Training dataset class for the behavior cloning model.
+    Training dataset class for the behavior cloning mlp model.
     Args:
         path: path to the dataset
         types: list of video types to include
@@ -181,7 +179,7 @@ class TransitionDataset(torch.utils.data.Dataset):
 
 class TestTransitionDataset(torch.utils.data.Dataset):
     """
-    Test dataset class for the behavior cloning model. This dataset is used to test the model on the eval data.
+    Test dataset class for the behavior cloning mlp model. This dataset is used to test the model on the eval data.
     This class is used to compare plausible and implausible episodes.
     Args:
         path: path to the dataset
@@ -318,6 +316,27 @@ class TestTransitionDataset(torch.utils.data.Dataset):
 
 
 class TransitionDatasetSequence(torch.utils.data.Dataset):
+    """
+    Training dataset class for the behavior cloning mlp model.
+    Args:
+        path: path to the dataset
+        types: list of video types to include
+        size: size of the frames to be returned
+        mode: train, val
+        num_context: number of context state-action pairs
+        num_test: number of test state-action pairs
+        num_trials: number of trials in an episode
+        action_range: number of frames to skip; actions are combined over these number of frames (displcement) of the agent
+        process_data: whether to the videos or not (skip if already processed)
+        max_len: maximum length of the sequence
+    __getitem__:
+        returns:  (dem_frames, dem_actions, dem_lens, query_frames, target_actions)
+        dem_frames: (num_context, 3, size, size)
+        dem_actions: (num_context, max_len, 2)
+        dem_lens: (num_context)
+        query_frames: (num_test, 3, size, size)
+        target_actions: (num_test, 2)
+    """
 
     def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9,
                  action_range=10, process_data=0, max_len=30):
@@ -345,7 +364,6 @@ class TransitionDatasetSequence(torch.utils.data.Dataset):
 
             paths = sorted(paths)
             jsons = sorted(jsons)
-
             if mode == 'train':
                 self.path_list += paths[:int(0.8 * len(jsons))]
                 self.json_list += jsons[:int(0.8 * len(jsons))]
@@ -358,34 +376,14 @@ class TransitionDatasetSequence(torch.utils.data.Dataset):
 
         self.data_tuples = []
         if process_data:
-            print(f'processing files {len(self.json_list)}')
-            for j, v in zip(self.json_list, self.path_list):
-                print(j)
-                with open(j, 'r') as f:
-                    state = json.load(f)
-                ep_lens = [len(x) for x in state]
-                past_len = 0
-                for e, l in enumerate(ep_lens):
-                    self.data_tuples.append([])
-                    # skip first 30 frames and last 83 frames
-                    for f in range(30, l - 83):
-                        # find action taken; this calculation is approximate
-                        f0x, f0y = state[e][f]['agent'][0]
-                        f1x, f1y = state[e][f + 1]['agent'][0]
-                        dx = (f1x - f0x) / 2.
-                        dy = (f1y - f0y) / 2.
-                        action = [dx, dy]
-                        # action = ACTION_LIST.index([dx, dy])
-                        self.data_tuples[-1].append((v, past_len + f, action))
-                    print(len(self.data_tuples[-1]))
-                    assert len(self.data_tuples[-1]) > 0
-                    past_len += l
-
+            # index the videos for quicker video retrieval.
+            self.data_tuples = index_data(self.json_list, self.path_list)
             index_dict = {'data_tuples': self.data_tuples}
             with open(os.path.join(self.path, f'index_bib_{mode}_{types_str}.json'), 'w') as fp:
                 json.dump(index_dict, fp)
 
         else:
+            # load pre-existing index
             with open(os.path.join(self.path, f'index_bib_{mode}_{types_str}.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_tuples = index_dict['data_tuples']
@@ -450,40 +448,13 @@ class TransitionDatasetSequence(torch.utils.data.Dataset):
 
     def get_test(self, trial, step=10):
         # retrieve state embeddings and actions from cached file
-        states = []
-        actions = []
         trial_len = []
-        context_len = None
-
         trial_len += [(trial, n) for n in range(0, len(self.data_tuples[trial]), step)]
 
         query_idx = random.randint(0, len(trial_len) - 1)
         context_len = query_idx - 1
         tq, nq = trial_len[query_idx]
 
-        # if query_idx > self.max_len:
-        #     trial_len = trial_len[query_idx - self.max_len:query_idx]
-        #     context_len = self.max_len
-        #
-        # for t, n in trial_len[:query_idx]:
-        #     video = self.data_tuples[t][n][0]
-        #     states = self._get_frame(video, self.data_tuples[t][n][1])
-        #
-        #     if len(self.data_tuples[t]) > n + self.action_range:
-        #         actions_xy = [d[2] for d in self.data_tuples[t][n:n + self.action_range]]
-        #     else:
-        #         actions_xy = [d[2] for d in self.data_tuples[t][n:]]
-        #     actions_xy = np.array(actions_xy)
-        #     actions_xy = np.mean(actions_xy, axis=0)
-        #     actions.append(actions_xy)
-        #
-        # states = torch.tensor(np.array(states))
-        # trial_frames_padded = torch.zeros(self.max_len, states.size(1), states.size(2),
-        #                                   states.size(3))
-        # trial_frames_padded[:states.size(0), :, :, :] = states
-        # actions = torch.tensor(np.array(actions))
-        # trial_actions_padded = torch.zeros(self.max_len, actions.size(1))
-        # trial_actions_padded[:actions.size(0), :] = actions
         video = self.data_tuples[tq][nq][0]
         query_frame = self._get_frame(video, self.data_tuples[tq][nq][1])
         if len(self.data_tuples[tq]) > nq + self.action_range:
@@ -509,7 +480,28 @@ class TransitionDatasetSequence(torch.utils.data.Dataset):
 
 
 class TestTransitionDatasetSequence(torch.utils.data.Dataset):
-
+    """
+    Test dataset class for the behavior cloning rnn model. This dataset is used to test the model on the eval data.
+    This class is used to compare plausible and implausible episodes.
+    Args:
+        path: path to the dataset
+        types: list of video types to include
+        size: size of the frames to be returned
+        mode: test
+        num_context: number of context state-action pairs
+        num_test: number of test state-action pairs
+        num_trials: number of trials in an episode
+        action_range: number of frames to skip; actions are combined over these number of frames (displcement) of the agent
+        process_data: whether to the videos or not (skip if already processed)
+    __getitem__:
+        returns:  (expected_dem_frames, expected_dem_actions, expected_dem_lens expected_query_frames, expected_target_actions,
+        unexpected_dem_frames, unexpected_dem_actions, unexpected_dem_lens, unexpected_query_frames, unexpected_target_actions)
+        dem_frames: (num_context, max_len, 3, size, size)
+        dem_actions: (num_context, max_len, 2)
+        dem_lens: (num_context)
+        query_frames: (num_test, 3, size, size)
+        target_actions: (num_test, 2)
+    """
     def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9,
                  action_range=10, process_data=0, max_len=30):
         self.path = path
@@ -550,8 +542,17 @@ class TestTransitionDatasetSequence(torch.utils.data.Dataset):
         self.data_unexpected = []
 
         if process_data:
-            print(f'processing files {len(self.json_list)}')
-            raise NotImplementedError
+            # index data. This is done to speed up video retrieval.
+            # frame index, action tuples are stored
+            self.data_expected = self.index_data(self.json_list_exp, self.path_list_exp)
+            index_dict = {'data_tuples': self.data_expected}
+            with open(os.path.join(self.path, f'index_bib_test_{types}e.json'), 'w') as fp:
+                json.dump(index_dict, fp)
+
+            self.data_unexpected = self.index_data(self.json_list_un, self.path_list_un)
+            index_dict = {'data_tuples': self.data_unexpected}
+            with open(os.path.join(self.path, f'index_bib_test_{types}u.json'), 'w') as fp:
+                json.dump(index_dict, fp)
 
         else:
             with open(os.path.join(self.path, f'index_bib_{mode}_{types}e.json'), 'r') as fp:
@@ -560,7 +561,6 @@ class TestTransitionDatasetSequence(torch.utils.data.Dataset):
             with open(os.path.join(self.path, f'index_bib_{mode}_{types}u.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_unexpected = index_dict['data_tuples']
-
 
     def _get_frame(self, video, frame_idx):
         cap = cv2.VideoCapture(video)
