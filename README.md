@@ -32,7 +32,7 @@ python3 train_tom.py --data_path /path/to/train_data/ --seed 1 --batch_size 32 -
 Once the model is trained, use the following command to evaluate the model.
 
 ```
-python3 evaluate.py --data_path /path/to/train_data/ --ckpt /path/to/model/ --process_data 1 --model_type bcmlp
+python3 test_bc.py --data_path /path/to/train_data/ --ckpt /path/to/model/ --process_data 1 --model_type bcmlp
 ```
 
 ## Cite
