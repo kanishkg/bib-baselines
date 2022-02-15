@@ -162,9 +162,10 @@ class TransitionDataset(torch.utils.data.Dataset):
         return states, actions, True
 
     def __getitem__(self, idx):
-        # retrieve 2 expert trajectories
+        # retrieve expert trajectories
         dem = False
         test = False
+        # dem and test check for valid trajectory samples
         while not dem or not test:
             ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
             random.shuffle(ep_trials)
@@ -294,7 +295,7 @@ class TestTransitionDataset(torch.utils.data.Dataset):
         return states, actions
 
     def __getitem__(self, idx):
-        # retrieve 2 expert trajectories
+        # retrieve expert trajectories
         ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
 
         # retrieve complete fam trajectories
@@ -468,7 +469,7 @@ class TransitionDatasetSequence(torch.utils.data.Dataset):
         return query_frame, target_action
 
     def __getitem__(self, idx):
-        # retrieve 2 expert trajectories
+        # retrieve expert trajectories
         ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
         random.shuffle(ep_trials)
         dem_states, dem_actions, dem_lens = self.get_trial(ep_trials[:-1], step=self.action_range)
@@ -644,7 +645,7 @@ class TestTransitionDatasetSequence(torch.utils.data.Dataset):
         return states, actions
 
     def __getitem__(self, idx):
-        # retrieve 2 expert trajectories
+        # retrieve expert trajectories
         ep_trials = [idx * self.num_trials + t for t in range(self.num_trials)]
         dem_expected_states, dem_expected_actions, dem_expected_lens = self.get_trial(ep_trials[:-1], self.data_expected, step=self.action_range)
         dem_unexpected_states, dem_unexpected_actions, dem_unexpected_lens = self.get_trial(ep_trials[:-1], self.data_unexpected, step=self.action_range)
