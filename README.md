@@ -35,9 +35,6 @@ Once the model is trained, use the following command to evaluate the model.
 python3 evaluate.py --data_path /path/to/train_data/ --ckpt /path/to/model/ --process_data 1 --model_type bcmlp
 ```
 
-## Hardware setup
-All models were trained on an NVIDIA 1080Ti GPU.
-
 ## Cite
 If you use the model in your research, please cite the following paper:
 ```
@@ -50,3 +47,6 @@ year={2021},
 url={https://arxiv.org/abs/2102.11938}
 }
 ```
+### Hardware setup
+All models were trained on an NVIDIA 1080Ti GPU.
+
