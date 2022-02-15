@@ -18,7 +18,10 @@ parser.add_argument('--size', type=int, default=84)
 
 parser.add_argument('--surprise_type', type=str, default='mean',
                     help='surprise type: mean, max. This is used for comparing the plausibility scores of the two test episodes')
-parser.add_argument('--types', nargs='+', type=str, default=['cl', 'ba'],
+parser.add_argument('--types', nargs='+', type=str,
+                    default=['preference', 'multi_agent', 'inaccessible_goal',
+                        'efficiency_irrational', 'efficiency_time','efficiency_path',
+                        'instrumental_no_barrier', 'instrumental_blocking_barrier', 'instrucmental_inconsequential_barrier'],
                     help='types of tasks used for training / testing')
 
 args = parser.parse_args()
