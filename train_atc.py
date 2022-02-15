@@ -17,8 +17,8 @@ parser.add_argument('--seed', type=int, default=4)
 # data specific args
 parser.add_argument('--data_path', type=str, default='./data.npy')
 parser.add_argument('--cache', type=int, default=0)
-parser.add_argument('--types', nargs='+', type=str, default=['co', 'pr'],
-                    help='types of tasks used for training / testing')
+parser.add_argument('--types', nargs='+', type=str, default=['preference', 'multi_agent', 'single_object', 'instrumental_action'],
+                    help='types of tasks used for training / validation')
 parser.add_argument('--shift', type=int, default=1)
 parser.add_argument('--random_shift', type=int, default=0)
 parser.add_argument('--size', type=int, default=100)
