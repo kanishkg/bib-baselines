@@ -14,9 +14,8 @@ parser.add_argument('--model_type', type=str, default='bcmlp')
 parser.add_argument('--ckpt', type=str, default=None, help='path to checkpoint')
 parser.add_argument('--data_path', type=str, default=None, help='path to the data')
 parser.add_argument('--size', type=int, default=84)
-
-
-parser.add_argument('--surprise_type', type=str, default='mean',
+parser.add_argument('--process_data', type=int, default=0)
+parser.add_argument('--surprise_type', type=str, default='max',
                     help='surprise type: mean, max. This is used for comparing the plausibility scores of the two test episodes')
 parser.add_argument('--types', nargs='+', type=str,
                     default=['preference', 'multi_agent', 'inaccessible_goal',
@@ -34,9 +33,9 @@ model.eval()
 
 for t in args.types:
     if args.model_type == 'bcmlp':
-        test_dataset = TestTransitionDataset(args.dataset, task_type=t, size=(args.size, args.size), process_data=0, mode='test')
+        test_dataset = TestTransitionDataset(args.dataset, task_type=t, size=(args.size, args.size), process_data=args.process_data, mode='test')
     elif args.model_type == 'bcrnn':
-        test_dataset = TestTransitionDatasetSequence(args.dataset, task_type=t, size=(args.size, args.size), process_data=0, mode='test')
+        test_dataset = TestTransitionDatasetSequence(args.dataset, task_type=t, size=(args.size, args.size), process_data=args.process_data, mode='test')
 
     test_dataloader = DataLoader(test_dataset, batch_size=1, num_workers=1, pin_memory=True, shuffle=False)
     count = 0
