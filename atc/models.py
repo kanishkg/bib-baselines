@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 
 from atc.utils import conv2d_output_shape, infer_leading_dims, restore_leading_dims, update_state_dict, random_shift
 
+# Code adopted from: https://github.com/astooke/rlpyt
 
 class MlpModel(nn.Module):
     """Multilayer Perceptron with last layer linear.

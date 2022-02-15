@@ -95,10 +95,6 @@ class BCMLP(pl.LightningModule):
         loss = F.mse_loss(test_actions, test_actions_pred)
         self.log('val_loss', loss, on_epoch=True, logger=True)
 
-    def test_step(self, batch, batch_idx):
-        # Test runs are implemented in test_bc.py
-        raise NotImplementedError
-
     def configure_optimizers(self):
         optim = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optim
@@ -121,10 +117,6 @@ class BCMLP(pl.LightningModule):
             val_loaders.append(DataLoader(dataset=val_datasets[-1], batch_size=self.hparams.batch_size,
                                           num_workers=self.hparams.num_workers, pin_memory=True, shuffle=False))
         return val_loaders
-
-    def test_dataloader(self):
-        # Test runs are implemented in test_bc.py
-        raise NotImplementedError
 
 class BCRNN(pl.LightningModule):
     """
@@ -216,10 +208,6 @@ class BCRNN(pl.LightningModule):
         loss = F.mse_loss(test_actions, test_actions_pred)
         self.log('val_loss', loss, on_epoch=True, logger=True)
 
-    def test_step(self, batch, batch_idx):
-        # test is implemented in test_bc.py
-        raise NotImplementedError
-
     def configure_optimizers(self):
         optim = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optim
@@ -244,7 +232,4 @@ class BCRNN(pl.LightningModule):
                                           collate_fn=collate_function_seq, num_workers=self.hparams.num_workers,
                                           pin_memory=True, shuffle=False))
         return val_loaders
-
-    def test_dataloader(self):
-        # test is implemented in test_bc.py
-        raise NotImplementedError
+    

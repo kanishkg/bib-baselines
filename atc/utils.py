@@ -1,3 +1,5 @@
+
+# Code adopted from: https://github.com/astooke/rlpyt
 import torch
 
 import numpy as np

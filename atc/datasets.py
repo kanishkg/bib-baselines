@@ -9,7 +9,6 @@ import torch.utils.data
 class FrameDataset(torch.utils.data.Dataset):
 
     def __init__(self, path, types=None, size=None, shift=1, mode="train", process_data=1):
-
         self.path = path
         self.types = types
         self.size = size
@@ -21,10 +20,10 @@ class FrameDataset(torch.utils.data.Dataset):
         # read video files
         for t in types:
             print(f'reading files of type {t} in {mode}')
-            self.path_list += [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                               x.endswith(f'{t}e.mp4')]
-            self.json_list += [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                               x.endswith(f'{t}e.json')]
+            self.path_list += [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+                               x.endswith(f'e.mp4')]
+            self.json_list += [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+                               x.endswith(f'e.json')]
 
         self.path_list = sorted(self.path_list)
         self.json_list = sorted(self.json_list)
@@ -41,6 +40,7 @@ class FrameDataset(torch.utils.data.Dataset):
 
         # process json files to extract frame indices for training atc
         if process_data:
+            # index videos to make frame retrieval easier
             print('processing files')
             for j, v in zip(self.json_list, self.path_list):
                 print(j)
