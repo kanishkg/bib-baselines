@@ -25,7 +25,7 @@ python train_atc.py --data_path /path/to/train_data/ --batch_size 512 --cache 1 
 After training, the behavior cloning model is trained using the following command.
 
 ```
-python train_tom.py --data_path /path/to/train_data/ --seed 1 --batch_size 32 --max_epochs 1000 --gpus 1 --num_workers 12  --stochastic_weight_avg True --lr 1e-4 --check_val_every_n_epoch 1 --max_epochs 1000 --process_data 1 --track_grad_norm 2 --gradient_clip_val 10
+python train_tom.py --model_type bcmlp --data_path /path/to/train_data/ --seed 1 --batch_size 32 --max_epochs 1000 --gpus 1 --num_workers 12  --stochastic_weight_avg True --lr 1e-4 --check_val_every_n_epoch 1 --max_epochs 1000 --process_data 1 --track_grad_norm 2 --gradient_clip_val 10
 ```
 
 ## Evaluting the model
