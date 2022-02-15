@@ -83,10 +83,10 @@ class TransitionDataset(torch.utils.data.Dataset):
         # get video paths and json file paths
         for t in types:
             print(f'reading files of type {t} in {mode}')
-            paths = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}.mp4')]
-            jsons = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}.json') and 'index' not in x]
+            paths = [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+                     x.endswith(f'.mp4')]
+            jsons = [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+                     x.endswith(f'.json') and 'index' not in x]
 
             paths = sorted(paths)
             jsons = sorted(jsons)
@@ -358,10 +358,10 @@ class TransitionDatasetSequence(torch.utils.data.Dataset):
         self.json_list = []
         for t in types:
             print(f'reading files of type {t} in {mode}')
-            paths = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}.mp4')]
-            jsons = [os.path.join(self.path, x) for x in os.listdir(self.path) if
-                     x.endswith(f'{t}.json') and 'index' not in x]
+            paths = [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+                     x.endswith(f'.mp4')]
+            jsons = [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+                     x.endswith(f'.json') and 'index' not in x]
 
             paths = sorted(paths)
             jsons = sorted(jsons)
