@@ -7,7 +7,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 
-from irl.models import ContextImitation, ContextImitationPixel, ContextNLL, ContextAIL, OfflineRL, ContextImitationLSTM
+from irl.models import BCRNN, BCMLP
 
 parser = ArgumentParser()
 
@@ -21,9 +21,13 @@ parser.add_argument('--types', nargs='+', type=str, default=['co', 'pr'],
 parser.add_argument('--train', type=int, default=1)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--batch_size', type=int, default=256)
+parser.add_argument('--model_type', type=str, default='bcmlp')
+
 
 # add model specific args
-parser = OfflineRL.add_model_specific_args(parser)
+parser = BCRNN.add_model_specific_args(parser)
+parser = BCMLP.add_model_specific_args(parser)
+
 
 # add all the available trainer options to argparse
 parser = Trainer.add_argparse_args(parser)
@@ -41,7 +45,12 @@ checkpoint_callback = ModelCheckpoint(
     save_top_k=-1,
 )
 # init model
-model = OfflineRL(args)
+if args.model_type == 'bcmlp':
+    model = BCMLP(args)
+elif args.model_type == 'bcrnn':
+    model = BCRNN(args)
+else:
+    raise NotImplementedError
 torch.autograd.set_detect_anomaly(True)
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
@@ -50,4 +59,4 @@ trainer.callbacks = [checkpoint_callback]
 if args.train:
     trainer.fit(model)
 else:
-    trainer.test(model)
+    raise NotImplementedError
