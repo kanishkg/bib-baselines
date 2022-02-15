@@ -20,10 +20,6 @@ parser.add_argument('--surprise_type', type=str, default='mean',
                     help='surprise type: mean, max. This is used for comparing the plausibility scores of the two test episodes')
 parser.add_argument('--types', nargs='+', type=str, default=['cl', 'ba'],
                     help='types of tasks used for training / testing')
-parser.add_argument('--episode_type', nargs='+', type=str, default=[''],
-                    help='which task to test: es, co, pr')
-
-
 
 args = parser.parse_args()
 
@@ -43,15 +39,22 @@ for t in args.types:
     count = 0
     pbar = tqdm(test_dataloader)
     for j, batch in enumerate(pbar):
-        dem_expected_states, dem_expected_actions, dem_expected_lens, query_expected_frames, target_expected_actions, \
-            dem_unexpected_states, dem_unexpected_actions, dem_unexpected_lens, query_unexpected_frames, target_unexpected_actions = batch
+        if args.model_type == 'bcmlp':
+            dem_expected_states, dem_expected_actions, query_expected_frames, target_expected_actions, \
+                dem_unexpected_states, dem_unexpected_actions, query_unexpected_frames, target_unexpected_actions = batch    
+        elif args.model_type == 'bcrnn':
+            dem_expected_states, dem_expected_actions, dem_expected_lens, query_expected_frames, target_expected_actions, \
+                dem_unexpected_states, dem_unexpected_actions, dem_unexpected_lens, query_unexpected_frames, target_unexpected_actions = batch
 
         # calculate the plausibility scores for the expected episode
         surprise_expected = []
         for i in range(query_expected_frames.size(1)):
-            # TODO: check if this is correct for both mdoels (bcmlp and bcrnn) 
-            test_actions, test_actions_pred = model(
-                [dem_expected_states, dem_expected_actions, dem_expected_lens, query_expected_frames[:, i, :, :, :], target_expected_actions[:,i,:]])
+            if args.model_type == 'bcmlp':
+                test_actions, test_actions_pred = model(
+                    [dem_expected_states, dem_expected_actions, query_expected_frames[:, i:i+1, :, :, :], target_expected_actions[:,i,:]])
+            elif args.model_type == 'bcrnn':
+                test_actions, test_actions_pred = model(
+                    [dem_expected_states, dem_expected_actions, dem_expected_lens, query_expected_frames[:, i, :, :, :], target_expected_actions[:,i,:]])
 
             loss = F.mse_loss(test_actions, test_actions_pred)
             surprise_expected.append(loss.cpu().detach().numpy())
@@ -62,9 +65,12 @@ for t in args.types:
         # calculate the plausibility scores for the unexpected episode
         surprise_unexpected = []
         for i in range(query_unexpected_frames.size(1)):
-            # TODO: check if this is correct for both mdoels (bcmlp and bcrnn)
-            test_actions, test_actions_pred = model(
-                [dem_unexpected_states, dem_unexpected_actions, dem_unexpected_lens, query_unexpected_frames[:, i, :, :, :], target_unexpected_actions[:,i,:]])
+            if args.model_type == 'bcmlp':
+                test_actions, test_actions_pred = model(
+                    [dem_unexpected_states, dem_unexpected_actions, query_unexpected_frames[:, i:i+1, :, :, :], target_unexpected_actions[:,i,:]]) 
+            elif args.model_type == 'bcrnn':
+                test_actions, test_actions_pred = model(
+                    [dem_unexpected_states, dem_unexpected_actions, dem_unexpected_lens, query_unexpected_frames[:, i, :, :, :], target_unexpected_actions[:,i,:]])
             loss = F.mse_loss(test_actions, test_actions_pred)
             surprise_unexpected.append(loss.cpu().detach().numpy())
 
