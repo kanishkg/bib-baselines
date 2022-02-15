@@ -184,7 +184,7 @@ class TestTransitionDataset(torch.utils.data.Dataset):
     This class is used to compare plausible and implausible episodes.
     Args:
         path: path to the dataset
-        types: list of video types to include
+        types: video type to evaluate on 
         size: size of the frames to be returned
         mode: test
         num_context: number of context state-action pairs
@@ -200,10 +200,10 @@ class TestTransitionDataset(torch.utils.data.Dataset):
         query_frames: (num_test, 3, size, size)
         target_actions: (num_test, 2)
     """
-    def __init__(self, path, types=None, size=None, mode="test", num_context=30, num_test=1, num_trials=9,
+    def __init__(self, path, task_type=None, size=None, mode="test", num_context=30, num_test=1, num_trials=9,
                  action_range=10, process_data=0):
         self.path = path
-        self.types = types
+        self.task_type = task_type
         self.size = size
         self.mode = mode
         self.num_trials = num_trials
@@ -218,15 +218,15 @@ class TestTransitionDataset(torch.utils.data.Dataset):
         self.path_list_un = []
         self.json_list_un = []
 
-        print(f'reading files of type {types} in {mode}')
-        paths_expected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
-                                 x.endswith(f'{types}e.mp4')])
-        jsons_expected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
-                                 x.endswith(f'{types}e.json') and 'index' not in x])
-        paths_unexpected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
-                                   x.endswith(f'{types}u.mp4')])
-        jsons_unexpected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
-                                   x.endswith(f'{types}u.json') and 'index' not in x])
+        print(f'reading files of type {task_type} in {mode}')
+        paths_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+                                 x.endswith(f'e.mp4')])
+        jsons_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+                                 x.endswith(f'e.json') and 'index' not in x])
+        paths_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+                                   x.endswith(f'u.mp4')])
+        jsons_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+                                   x.endswith(f'u.json') and 'index' not in x])
 
         self.path_list_exp += paths_expected
         self.json_list_exp += jsons_expected
@@ -240,20 +240,20 @@ class TestTransitionDataset(torch.utils.data.Dataset):
             # frame index, action tuples are stored
             self.data_expected = self.index_data(self.json_list_exp, self.path_list_exp)
             index_dict = {'data_tuples': self.data_expected}
-            with open(os.path.join(self.path, f'index_bib_test_{types}e.json'), 'w') as fp:
+            with open(os.path.join(self.path, f'index_bib_test_{task_type}e.json'), 'w') as fp:
                 json.dump(index_dict, fp)
 
             self.data_unexpected = self.index_data(self.json_list_un, self.path_list_un)
             index_dict = {'data_tuples': self.data_unexpected}
-            with open(os.path.join(self.path, f'index_bib_test_{types}u.json'), 'w') as fp:
+            with open(os.path.join(self.path, f'index_bib_test_{task_type}u.json'), 'w') as fp:
                 json.dump(index_dict, fp)
 
         else:
             # load pre-indexed data
-            with open(os.path.join(self.path, f'index_bib_test_{types}e.json'), 'r') as fp:
+            with open(os.path.join(self.path, f'index_bib_test_{task_type}e.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_expected = index_dict['data_tuples']
-            with open(os.path.join(self.path, f'index_bib_test_{types}u.json'), 'r') as fp:
+            with open(os.path.join(self.path, f'index_bib_test_{task_type}u.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_unexpected = index_dict['data_tuples']
 
@@ -503,10 +503,10 @@ class TestTransitionDatasetSequence(torch.utils.data.Dataset):
         query_frames: (num_test, 3, size, size)
         target_actions: (num_test, 2)
     """
-    def __init__(self, path, types=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9,
+    def __init__(self, path, task_type=None, size=None, mode="train", num_context=30, num_test=1, num_trials=9,
                  action_range=10, process_data=0, max_len=30):
         self.path = path
-        self.types = types
+        self.task_type = task_type
         self.size = size
         self.mode = mode
         self.num_trials = num_trials
@@ -523,15 +523,15 @@ class TestTransitionDatasetSequence(torch.utils.data.Dataset):
         self.path_list_un = []
         self.json_list_un = []
 
-        print(f'reading files of type {types} in {mode}')
-        paths_expected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
-                                 x.endswith(f'{types}e.mp4')])
-        jsons_expected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
-                                 x.endswith(f'{types}e.json') and 'index' not in x])
-        paths_unexpected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
-                                   x.endswith(f'{types}u.mp4')])
-        jsons_unexpected = sorted([os.path.join(self.path, x) for x in os.listdir(self.path) if
-                                   x.endswith(f'{types}u.json') and 'index' not in x])
+        print(f'reading files of type {task_type} in {mode}')
+        paths_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+                                 x.endswith(f'{task_type}e.mp4')])
+        jsons_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+                                 x.endswith(f'{task_type}e.json') and 'index' not in x])
+        paths_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+                                   x.endswith(f'{task_type}u.mp4')])
+        jsons_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+                                   x.endswith(f'{task_type}u.json') and 'index' not in x])
 
         self.path_list_exp += paths_expected
         self.json_list_exp += jsons_expected
@@ -547,19 +547,19 @@ class TestTransitionDatasetSequence(torch.utils.data.Dataset):
             # frame index, action tuples are stored
             self.data_expected = self.index_data(self.json_list_exp, self.path_list_exp)
             index_dict = {'data_tuples': self.data_expected}
-            with open(os.path.join(self.path, f'index_bib_test_{types}e.json'), 'w') as fp:
+            with open(os.path.join(self.path, f'index_bib_test_{task_type}e.json'), 'w') as fp:
                 json.dump(index_dict, fp)
 
             self.data_unexpected = self.index_data(self.json_list_un, self.path_list_un)
             index_dict = {'data_tuples': self.data_unexpected}
-            with open(os.path.join(self.path, f'index_bib_test_{types}u.json'), 'w') as fp:
+            with open(os.path.join(self.path, f'index_bib_test_{task_type}u.json'), 'w') as fp:
                 json.dump(index_dict, fp)
 
         else:
-            with open(os.path.join(self.path, f'index_bib_{mode}_{types}e.json'), 'r') as fp:
+            with open(os.path.join(self.path, f'index_bib_{mode}_{task_type}e.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_expected = index_dict['data_tuples']
-            with open(os.path.join(self.path, f'index_bib_{mode}_{types}u.json'), 'r') as fp:
+            with open(os.path.join(self.path, f'index_bib_{mode}_{task_type}u.json'), 'r') as fp:
                 index_dict = json.load(fp)
             self.data_unexpected = index_dict['data_tuples']
 

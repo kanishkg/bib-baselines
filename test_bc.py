@@ -31,9 +31,9 @@ model.eval()
 
 for t in args.types:
     if args.model_type == 'bcmlp':
-        test_dataset = TestTransitionDataset(args.dataset, types=t, size=(args.size, args.size), process_data=0, mode='test')
+        test_dataset = TestTransitionDataset(args.dataset, task_type=t, size=(args.size, args.size), process_data=0, mode='test')
     elif args.model_type == 'bcrnn':
-        test_dataset = TestTransitionDatasetSequence(args.dataset, types=t, size=(args.size, args.size), process_data=0, mode='test')
+        test_dataset = TestTransitionDatasetSequence(args.dataset, task_type=t, size=(args.size, args.size), process_data=0, mode='test')
 
     test_dataloader = DataLoader(test_dataset, batch_size=1, num_workers=1, pin_memory=True, shuffle=False)
     count = 0
