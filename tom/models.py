@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from atc.models import MlpModel, ATCEncoder
 from atc.utils import update_state_dict
-from irl.datasets import *
+from tom.datasets import *
 
 class BCMLP(pl.LightningModule):
     """

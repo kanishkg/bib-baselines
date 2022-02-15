@@ -5,8 +5,8 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from irl.datasets import *
-from irl.models import *
+from tom.datasets import *
+from tom.models import *
 
 parser = ArgumentParser()
 

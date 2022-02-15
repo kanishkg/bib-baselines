@@ -7,7 +7,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 
-from irl.models import BCRNN, BCMLP
+from tom.models import BCRNN, BCMLP
 
 parser = ArgumentParser()
 
