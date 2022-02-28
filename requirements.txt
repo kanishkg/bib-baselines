@@ -13,7 +13,7 @@ grpcio==1.36.1
 idna==2.10
 Markdown==3.3.4
 multidict==5.1.0
-numpy==1.20.1
+numpy==1.19.5
 oauthlib==3.1.0
 opencv-python==4.5.1.48
 Pillow==8.1.2
