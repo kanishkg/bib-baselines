@@ -25,15 +25,21 @@ parser.add_argument('--model_type', type=str, default='bcmlp')
 
 
 # add model specific args
-parser = BCRNN.add_model_specific_args(parser)
-parser = BCMLP.add_model_specific_args(parser)
+parser_mlp = ArgumentParser()
+parser_mlp = BCMLP.add_model_specific_args(parser_mlp)
+parser_rnn = ArgumentParser()
+parser_rnn = BCRNN.add_model_specific_args(parser_rnn)
 
 
 # add all the available trainer options to argparse
 parser = Trainer.add_argparse_args(parser)
 
+# combine parsers
+parser_all = ArgumentParser(conflict_handler='resolve',
+           parents=[parser, parser_mlp, parser_rnn])
+
 # parse args
-args = parser.parse_args()
+args = parser_all.parse_args()
 args.types = sorted(args.types)
 print(args)
 
