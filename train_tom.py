@@ -46,10 +46,6 @@ print(args)
 random.seed(args.seed)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
-checkpoint_callback = ModelCheckpoint(
-    monitor='prior_mse',
-    save_top_k=-1,
-)
 # init model
 if args.model_type == 'bcmlp':
     model = BCMLP(args)
@@ -60,7 +56,6 @@ else:
 torch.autograd.set_detect_anomaly(True)
 # most basic trainer, uses good defaults (auto-tensorboard, checkpoints, logs, and more)
 trainer = Trainer.from_argparse_args(args)
-trainer.callbacks = [checkpoint_callback]
 
 if args.train:
     trainer.fit(model)
