@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import torch
 import torch.utils.data
-import tqdm
+from tqdm import tqdm
 
 
 def collate_function_seq(batch):
@@ -83,9 +83,9 @@ class TransitionDataset(torch.utils.data.Dataset):
         # get video paths and json file paths
         for t in types:
             print(f'reading files of type {t} in {mode}')
-            paths = [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+            paths = [os.path.join(self.path, t, x) for x in os.listdir(os.path.join(self.path, t)) if
                      x.endswith(f'.mp4')]
-            jsons = [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+            jsons = [os.path.join(self.path, t, x) for x in os.listdir(os.path.join(self.path, t)) if
                      x.endswith(f'.json') and 'index' not in x]
 
             paths = sorted(paths)
@@ -219,13 +219,13 @@ class TestTransitionDataset(torch.utils.data.Dataset):
         self.json_list_un = []
 
         print(f'reading files of type {task_type} in {mode}')
-        paths_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+        paths_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(os.path.join(self.path, task_type)) if
                                  x.endswith(f'e.mp4')])
-        jsons_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+        jsons_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(os.path.join(self.path, task_type)) if
                                  x.endswith(f'e.json') and 'index' not in x])
-        paths_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+        paths_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(os.path.join(self.path, task_type)) if
                                    x.endswith(f'u.mp4')])
-        jsons_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+        jsons_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(os.path.join(self.path, task_type)) if
                                    x.endswith(f'u.json') and 'index' not in x])
 
         self.path_list_exp += paths_expected
@@ -358,9 +358,9 @@ class TransitionDatasetSequence(torch.utils.data.Dataset):
         self.json_list = []
         for t in types:
             print(f'reading files of type {t} in {mode}')
-            paths = [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+            paths = [os.path.join(self.path, t, x) for x in os.listdir(os.path.join(self.path, t)) if
                      x.endswith(f'.mp4')]
-            jsons = [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+            jsons = [os.path.join(self.path, t, x) for x in os.listdir(os.path.join(self.path, t)) if
                      x.endswith(f'.json') and 'index' not in x]
 
             paths = sorted(paths)
@@ -524,13 +524,13 @@ class TestTransitionDatasetSequence(torch.utils.data.Dataset):
         self.json_list_un = []
 
         print(f'reading files of type {task_type} in {mode}')
-        paths_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+        paths_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(os.path.join(self.path, task_type)) if
                                  x.endswith(f'{task_type}e.mp4')])
-        jsons_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+        jsons_expected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(os.path.join(self.path, task_type)) if
                                  x.endswith(f'{task_type}e.json') and 'index' not in x])
-        paths_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+        paths_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(os.path.join(self.path, task_type)) if
                                    x.endswith(f'{task_type}u.mp4')])
-        jsons_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(self.path) if
+        jsons_unexpected = sorted([os.path.join(self.path, task_type, x) for x in os.listdir(os.path.join(self.path, task_type)) if
                                    x.endswith(f'{task_type}u.json') and 'index' not in x])
 
         self.path_list_exp += paths_expected
