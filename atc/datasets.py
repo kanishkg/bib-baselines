@@ -20,9 +20,9 @@ class FrameDataset(torch.utils.data.Dataset):
         # read video files
         for t in types:
             print(f'reading files of type {t} in {mode}')
-            self.path_list += [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+            self.path_list += [os.path.join(self.path, t, x) for x in os.listdir(os.path.join(self.path, t)) if
                                x.endswith(f'e.mp4')]
-            self.json_list += [os.path.join(self.path, t, x) for x in os.listdir(self.path) if
+            self.json_list += [os.path.join(self.path, t, x) for x in os.listdir(os.path.join(self.path, t)) if
                                x.endswith(f'e.json')]
 
         self.path_list = sorted(self.path_list)
